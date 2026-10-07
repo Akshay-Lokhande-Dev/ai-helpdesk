@@ -5,10 +5,25 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-DATABASE_URL=os.getenv("DATABASE_URL")
-engine=create_engine(DATABASE_URL)
 
-print(f"engine ban gaya {engine}")
+def require_env(config_key):
 
-if not DATABASE_URL:
-    raise RuntimeError("DATABASE_URL is not set check your .env file")
+    print(config_key)
+
+    value = os.getenv(config_key)
+
+
+    if not value:
+        raise RuntimeError(f"{config_key} is not set check your .env file")
+    
+    return value
+
+DATABASE_URL = require_env("DATABASE_URL")
+
+engine = create_engine(DATABASE_URL)
+
+
+
+
+
+
