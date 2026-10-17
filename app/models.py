@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, String, UniqueConstraint, func
+from sqlalchemy import DateTime, ForeignKey, String, UniqueConstraint, func,Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base
@@ -27,3 +27,19 @@ class User(Base):
     name: Mapped[str] = mapped_column(String(100))
     role: Mapped[str] = mapped_column(String(30),server_default="end_user", default="end_user")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+class Ticket(Base):
+    __tablename__ = "tickets"
+    __table_args__ = (UniqueConstraint("tenant_id", "ticket_number"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"))
+    ticket_number: Mapped[str] = mapped_column(String(20))
+    title: Mapped[str] = mapped_column(String(200))
+    description: Mapped[str | None] = mapped_column(Text)
+    state: Mapped[str] = mapped_column(String(20), default="new", server_default="new")
+    priority: Mapped[str] = mapped_column(String(20), default="medium", server_default="medium")
+    caller_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    assignee_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())                  
+
