@@ -7,11 +7,23 @@ from app import models
 
 with session_local() as s:
     tenant = models.Tenant(name="Acme Corp", slug="acme-" + uuid.uuid4().hex[:6])
-    print("commit se pehle id:", tenant.id)
     s.add(tenant)
-    s.commit()
+    s.flush()                      # INSERT chala, ab tenant.id mil gaya
+    print("flush ke baad tenant id:", tenant.id)
 
-    print("commit ke baad:",tenant.id)
-    rows = s.scalars(select(models.Tenant)).all()
-    for t in rows:
-        print(t.id, t.name, t.slug, t.status, t.created_at)
+    user = models.User(name="Akshay", tenant_id=tenant.id, email="akshay@test.com")
+    s.add(user)
+    s.flush()                      # ab user.id mil gaya
+
+    ticket = models.Ticket(
+        tenant_id=tenant.id,
+        ticket_number="T-001",
+        title="Login not working",
+        description="User cannot login with correct password",
+        caller_id=user.id,
+    )
+    s.add(ticket)
+    s.commit()                     # ek hi baar, sabse ant mein: teeno saath mein pakke
+
+    row = s.scalars(select(models.Ticket)).first()
+    print(row.id, row.ticket_number, row.state, row.priority, row.created_at)
