@@ -16,5 +16,12 @@ DATABASE_URL = require_env("DATABASE_URL")
 engine = create_engine(DATABASE_URL)
 session_local = sessionmaker(bind=engine)
 
+def get_db():
+    db = session_local()
+    try:
+        yield db
+    finally:
+        db.close()    
+
 class Base(DeclarativeBase):
     pass
