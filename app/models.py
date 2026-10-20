@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, String, UniqueConstraint, func,Text
+from sqlalchemy import DateTime, ForeignKey, String, UniqueConstraint, func,Text,Index
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base
@@ -30,7 +30,8 @@ class User(Base):
 
 class Ticket(Base):
     __tablename__ = "tickets"
-    __table_args__ = (UniqueConstraint("tenant_id", "ticket_number"),)
+    __table_args__ = (UniqueConstraint("tenant_id", "ticket_number"),Index("idx_tickets_caller_id", "caller_id"),
+        Index("idx_tickets_assignee_id", "assignee_id"))
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"))
@@ -41,5 +42,18 @@ class Ticket(Base):
     priority: Mapped[str] = mapped_column(String(20), default="medium", server_default="medium")
     caller_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
     assignee_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())                  
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now()) 
+
+class TicketComment(Base):
+    __tablename__ = "ticket_comments"
+    __table_args__ = (Index("idx_ticket_comments_ticket_id", "ticket_id"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"))
+    ticket_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tickets.id"))
+    author_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    body: Mapped[str] = mapped_column(Text)
+    visibility: Mapped[str] = mapped_column(String(20), default="internal", server_default="internal")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
 
