@@ -4,10 +4,12 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text,select
 from app.schemas import TicketOut
 from app import models
+from app.routers import tickets
 
 
 
 app=FastAPI()
+app.include_router(tickets.router)
 
 @app.get("/health")
 def health_check():
@@ -20,11 +22,6 @@ def db_check(db: Session  = Depends(get_db)):
 
     return result
 
-@app.get("/tickets",response_model=list[TicketOut])
-def get_tickets(db:Session=Depends(get_db)):
-    
-    tickets = db.scalars(select(models.Ticket).limit(50)).all()
 
-    return tickets
 
     
