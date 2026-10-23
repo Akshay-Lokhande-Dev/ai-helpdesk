@@ -13,4 +13,11 @@ class TicketOut(BaseModel):
     priority: str
     created_at: datetime
     model_config = ConfigDict(from_attributes=True)
+
+class TicketCreate(BaseModel):
+        title: str
+        description: str | None = None
+        priority: str = "medium"
+        tenant_id: uuid.UUID
+        caller_id: uuid.UUID
     
