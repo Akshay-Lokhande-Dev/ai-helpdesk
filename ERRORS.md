@@ -29,4 +29,4 @@ When: I sent a tenant_id that does not exist in the tenants table.
 Why: tickets.tenant_id has a foreign key to tenants.id. Postgres rejected the INSERT, SQLAlchemy raised IntegrityError, and FastAPI turned the unhandled exception into a 500.
 How I found it: last line of the traceback named ForeignKeyViolation.
 Lesson: a 500 means "server bug", but this was a client mistake, so the API should return a 4xx. Also, a foreign key only checks that the id exists, not that the user belongs to that tenant.
-Fix: planned (check that the tenant exists before inserting).
+Fix: checked tenant and caller before insert; return 404 for missing or mismatched references.
