@@ -30,3 +30,20 @@ Why: tickets.tenant_id has a foreign key to tenants.id. Postgres rejected the IN
 How I found it: last line of the traceback named ForeignKeyViolation.
 Lesson: a 500 means "server bug", but this was a client mistake, so the API should return a 4xx. Also, a foreign key only checks that the id exists, not that the user belongs to that tenant.
 Fix: checked tenant and caller before insert; return 404 for missing or mismatched references.
+
+## 7. TypeError: 'rol' is an invalid keyword argument for User
+When: `user = models.User(rol="admin", ...)` - typo in column name.
+Why: `models.User` is a SQLAlchemy class. Its `__init__` only accepts columns defined in models.py. This fails at APP level, DB is never hit.
+How I found it: Python traceback directly said invalid keyword argument.
+Lesson: Wrong column name = App level TypeError. Wrong column value = DB level error. `user` is an object of `User` class.
+Fix: use correct field names `role`, `email` etc. as defined in `models.py`.
+
+## 8. IntegrityError (UniqueViolation) -> 500 on POST /users
+When: I sent same email twice for same tenant_id.
+Why: constraint `users_tenant_id_email_key` on (tenant_id, email). Postgres rejected INSERT, SQLAlchemy raised `IntegrityError`, unhandled -> 500.
+Fix: catch it and return 409:
+```python
+except IntegrityError as e:
+    db.rollback()
+    if "users_tenant_id_email_key" in str(e.orig):
+        raise HTTPException(409, "Email already exists in this tenant")
