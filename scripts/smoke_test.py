@@ -20,9 +20,9 @@ with session_local() as s:
         caller_id=user.id,
     )
     s.add(ticket)
-    s.flush()                          # NAYA: comments ko ticket.id chahiye
+    s.flush()                          
 
-    # NAYA: do comments, ek public, ek internal
+    
     c1 = models.TicketComment(
         tenant_id=tenant.id, ticket_id=ticket.id, author_id=user.id,
         body="Mera login nahi chal raha, please dekhiye", visibility="public",
@@ -31,15 +31,15 @@ with session_local() as s:
         tenant_id=tenant.id, ticket_id=ticket.id, author_id=user.id,
         body="Account lock lag raha hai, DBA se check karo", visibility="internal",
     )
-    s.add_all([c1, c2])                # dono ek saath add
-    s.commit()                         # ek hi baar, sabse ant mein
+    s.add_all([c1, c2])               
+    s.commit()                         
 
-    # NAYA: agent ko sab comments dikhte hain
+    
     all_comments = s.scalars(
         select(models.TicketComment).where(models.TicketComment.ticket_id == ticket.id)
     ).all()
 
-    # NAYA: end user ko sirf public wale
+   
     public_comments = s.scalars(
         select(models.TicketComment).where(
             models.TicketComment.ticket_id == ticket.id,
