@@ -1,7 +1,8 @@
-from pydantic import BaseModel,ConfigDict
+from pydantic import BaseModel,ConfigDict,Field
 import uuid
 from typing import Optional
 from datetime import datetime
+from typing import Literal
 
 
 class TicketOut(BaseModel):
@@ -20,4 +21,22 @@ class TicketCreate(BaseModel):
         priority: str = "medium"
         tenant_id: uuid.UUID
         caller_id: uuid.UUID
-    
+
+class UserOut(BaseModel):
+      id:uuid.UUID
+      email:str
+      name:str
+      role:str
+      created_at:datetime
+
+class UserCreate(BaseModel):
+    tenant_id: uuid.UUID
+    email: str
+    name: str
+    role: Literal["end_user", "agent", "admin"] = "end_user"
+    password: str = Field(min_length=8)
+
+      
+            
+      
+          

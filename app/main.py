@@ -5,11 +5,13 @@ from sqlalchemy import text,select
 from app.schemas import TicketOut
 from app import models
 from app.routers import tickets
+from app.routers import users
 
 
 
-app=FastAPI()
+app=FastAPI(redirect_slashes=False)
 app.include_router(tickets.router)
+app.include_router(users.router)
 
 @app.get("/health")
 def health_check():
