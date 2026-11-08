@@ -3,7 +3,8 @@ import uuid
 from typing import Optional
 from datetime import datetime
 from typing import Literal
-
+import uuid
+from pydantic import BaseModel, ConfigDict
 
 class TicketOut(BaseModel):
     id: uuid.UUID
@@ -36,7 +37,21 @@ class UserCreate(BaseModel):
     role: Literal["end_user", "agent", "admin"] = "end_user"
     password: str = Field(min_length=8)
 
-      
+class LoginRequest(BaseModel):
+    tenant_slug: str
+    email: str
+    password: str
+
+class TokenOut(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+
+class MeOut(BaseModel):
+    id: uuid.UUID
+    email: str
+    role: str
+    tenant_id: uuid.UUID
+    model_config = ConfigDict(from_attributes=True)          
             
       
           
