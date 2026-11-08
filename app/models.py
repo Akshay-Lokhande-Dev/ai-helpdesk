@@ -27,6 +27,7 @@ class User(Base):
     name: Mapped[str] = mapped_column(String(100))
     role: Mapped[str] = mapped_column(String(30),server_default="end_user", default="end_user")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    status: Mapped[str] = mapped_column(String(20), default="active", server_default="active")
     password_hash: Mapped[str | None] = mapped_column(String(255))
 
 class Ticket(Base):
