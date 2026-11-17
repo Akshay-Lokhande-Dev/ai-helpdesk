@@ -61,7 +61,18 @@ class MeOut(BaseModel):
     role: str
     tenant_id: uuid.UUID
     model_config = ConfigDict(from_attributes=True) 
-             
-            
-      
+
+class CommentCreate(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)      
+    body: str = Field(min_length=1, max_length=5000)
+    visibility: Literal["public", "internal"] = "internal"     
+
+
+class CommentOut(BaseModel):
+    id: uuid.UUID
+    author_id: uuid.UUID
+    body: str
+    visibility: str
+    created_at: datetime
+    model_config = ConfigDict(from_attributes=True)
           
