@@ -1,8 +1,8 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, String, UniqueConstraint, func,Text,Index
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import DateTime, ForeignKey, String, UniqueConstraint, func,Text,Index,UUID
+from sqlalchemy.orm import Mapped, mapped_column,relationship
 
 from app.db import Base
 
@@ -58,4 +58,18 @@ class TicketComment(Base):
     visibility: Mapped[str] = mapped_column(String(20), default="internal", server_default="internal")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
+class TicketEvent(Base):
+    __tablename__ = "ticket_events"
+    __table_args__ = (Index("idx_ticket_events_ticket_id", "ticket_id", "created_at"),)
 
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"))
+    ticket_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tickets.id"))
+    actor_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))      
+
+    event_type: Mapped[str] = mapped_column(String(30))                      
+    field: Mapped[str | None] = mapped_column(String(50))
+    old_value: Mapped[str | None] = mapped_column(Text)
+    new_value: Mapped[str | None] = mapped_column(Text)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

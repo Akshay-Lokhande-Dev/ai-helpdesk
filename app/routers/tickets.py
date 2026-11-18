@@ -43,6 +43,13 @@ def create_ticket(payload: TicketCreate, current_user: models.User = Depends(get
         ticket_number="T-" + uuid.uuid4().hex[:8].upper(),
     )
     db.add(ticket)
+    db.flush()                                       
+    db.add(models.TicketEvent(
+    tenant_id=current_user.tenant_id,
+    ticket_id=ticket.id,
+    actor_id=current_user.id,
+    event_type="created",))
+    
     db.commit()
     db.refresh(ticket)
     return ticket
