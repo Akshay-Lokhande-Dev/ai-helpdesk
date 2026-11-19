@@ -4,6 +4,7 @@ from typing import Optional
 from datetime import datetime
 from typing import Literal
 import uuid
+from uuid import UUID
 from pydantic import BaseModel, ConfigDict,field_validator
 
 class TicketOut(BaseModel):
@@ -21,6 +22,13 @@ class TicketCreate(BaseModel):
         description: str | None = None
         priority: str = "medium"
         model_config = ConfigDict(extra="forbid")
+
+class TicketUpdate(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+    state: Literal["new", "in_progress", "on_hold", "resolved", "closed", "cancelled"] | None = None
+    priority: Literal["low", "medium", "high", "critical"] | None = None
+    assignee_id: uuid.UUID | None = None            # explicit null bhejne par unassign
+    resolution: str | None = Field(default=None, min_length=1, max_length=5000)       
 
 class UserOut(BaseModel):
       id:uuid.UUID

@@ -3,6 +3,7 @@ from datetime import datetime
 
 from sqlalchemy import DateTime, ForeignKey, String, UniqueConstraint, func,Text,Index,UUID
 from sqlalchemy.orm import Mapped, mapped_column,relationship
+from sqlalchemy.dialects.postgresql import JSONB
 
 from app.db import Base
 
@@ -33,7 +34,8 @@ class User(Base):
 class Ticket(Base):
     __tablename__ = "tickets"
     __table_args__ = (UniqueConstraint("tenant_id", "ticket_number"),Index("idx_tickets_caller_id", "caller_id"),
-        Index("idx_tickets_assignee_id", "assignee_id"))
+        Index("idx_tickets_assignee_id", "assignee_id"),UniqueConstraint("tenant_id", "source_system", "source_id", name="uq_tickets_source"))
+
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"))
@@ -44,7 +46,14 @@ class Ticket(Base):
     priority: Mapped[str] = mapped_column(String(20), default="medium", server_default="medium")
     caller_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
     assignee_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now()) 
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    resolution:Mapped[str|None] = mapped_column(Text,nullable=True)
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    source_system: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    source_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    raw_payload: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+
 
 class TicketComment(Base):
     __tablename__ = "ticket_comments"
