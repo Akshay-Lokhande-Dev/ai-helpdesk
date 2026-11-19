@@ -15,6 +15,9 @@ class TicketOut(BaseModel):
     state: str
     priority: str
     created_at: datetime
+    resolution: str | None = None
+    resolved_at: datetime | None = None
+    updated_at: datetime | None = None
     model_config = ConfigDict(from_attributes=True)
 
 class TicketCreate(BaseModel):
