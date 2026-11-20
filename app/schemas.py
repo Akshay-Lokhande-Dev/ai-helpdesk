@@ -86,4 +86,21 @@ class CommentOut(BaseModel):
     visibility: str
     created_at: datetime
     model_config = ConfigDict(from_attributes=True)
-          
+
+class ActorOut(BaseModel):
+    id: uuid.UUID
+    name: str
+    model_config = ConfigDict(from_attributes=True)
+
+class TimelineEntry(BaseModel):
+    kind: Literal["comment", "event"]
+    at: datetime
+    actor: ActorOut
+    # comment fields
+    body: str | None = None
+    visibility: str | None = None
+    # event fields
+    event_type: str | None = None
+    field: str | None = None
+    old_value: str | None = None
+    new_value: str | None = None

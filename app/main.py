@@ -8,6 +8,7 @@ from app.routers import tickets
 from app.routers import users
 from app.routers import auth as auth_router
 from app.routers import comments
+from app.routers import timeline
 
 
 
@@ -17,6 +18,7 @@ app.include_router(tickets.router)
 app.include_router(users.router)
 app.include_router(auth_router.router)
 app.include_router(comments.router)
+app.include_router(timeline.router)
 
 @app.get("/health")
 def health_check():
