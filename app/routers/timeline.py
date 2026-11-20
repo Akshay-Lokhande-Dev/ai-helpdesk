@@ -18,7 +18,6 @@ def get_timeline(
     current_user=Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    # 1. visible wali list me se apna ticket nikal
     ticket = db.scalars(
         visible_tickets(current_user).where(models.Ticket.id == ticket_id)
     ).first()
@@ -29,7 +28,6 @@ def get_timeline(
     is_end_user = current_user.role == "end_user"
     timeline = []
 
-    # 2. comments nikal
     comment_query = (
         select(models.TicketComment, models.User)
         .join(models.User, models.User.id == models.TicketComment.author_id)
@@ -50,7 +48,6 @@ def get_timeline(
             visibility=comment.visibility,
         ))
 
-    # 3. events nikal
     event_query = (
         select(models.TicketEvent, models.User)
         .join(models.User, models.User.id == models.TicketEvent.actor_id)
@@ -78,6 +75,5 @@ def get_timeline(
             new_value=event.new_value,
         ))
 
-    # 4. time se sort kar, same time pe kind se fix order
     timeline.sort(key=lambda x: (x.at, x.kind))
     return timeline

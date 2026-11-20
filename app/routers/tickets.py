@@ -71,7 +71,6 @@ def update_ticket(
 
     changes = payload.model_dump(exclude_unset=True)       # sirf wahi jo client ne sach mein bheja
 
-    # --- sab jaanch, kuch badalne se PEHLE ---
     new_assignee = changes.get("assignee_id")
     if new_assignee is not None:
         assignee = db.get(models.User, new_assignee)
@@ -83,7 +82,6 @@ def update_ticket(
         if not changes.get("resolution", ticket.resolution):
             raise HTTPException(status_code=422, detail="Resolution is required to resolve a ticket")
 
-    # --- badlav aur events, ek hi transaction mein ---
     for field, new in changes.items():
         old = getattr(ticket, field)
         if new == old:
