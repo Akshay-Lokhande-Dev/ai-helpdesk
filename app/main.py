@@ -9,11 +9,13 @@ from app.routers import users
 from app.routers import auth as auth_router
 from app.routers import comments
 from app.routers import timeline
+from fastapi.middleware.cors import CORSMiddleware
 
 
 
 
 app=FastAPI(redirect_slashes=False)
+
 app.include_router(tickets.router)
 app.include_router(users.router)
 app.include_router(auth_router.router)

@@ -1,9 +1,13 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, String, UniqueConstraint, func,Text,Index,UUID
+from sqlalchemy import DateTime, ForeignKey, String, UniqueConstraint, func,Text,Index,UUID,Computed,Integer
+from sqlalchemy.dialects.postgresql import TSVECTOR
 from sqlalchemy.orm import Mapped, mapped_column,relationship
 from sqlalchemy.dialects.postgresql import JSONB
+from pgvector.sqlalchemy import Vector
+
+
 
 from app.db import Base
 
@@ -82,3 +86,55 @@ class TicketEvent(Base):
     new_value: Mapped[str | None] = mapped_column(Text)
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class KBArticle(Base):
+    __tablename__ = "kb_articles"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"))
+    title: Mapped[str] = mapped_column(String(200))
+    body: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(20), default="draft", server_default="draft")
+
+    source_ticket_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("tickets.id"))
+    source_system: Mapped[str | None] = mapped_column(String(50))
+    source_id: Mapped[str | None] = mapped_column(String(255))
+
+    created_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "source_system", "source_id", name="uq_kb_tenant_source"),
+        Index("ix_kb_tenant_status", "tenant_id", "status"),
+    )
+
+class ContentChunk(Base):
+    __tablename__ = "content_chunks"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"))
+
+    parent_type: Mapped[str] = mapped_column(String(20))
+    parent_id: Mapped[uuid.UUID] = mapped_column()
+    chunk_index: Mapped[int] = mapped_column(Integer)
+
+    content_masked: Mapped[str] = mapped_column(Text)
+    content_hash: Mapped[str] = mapped_column(String(64))
+    visibility: Mapped[str] = mapped_column(String(20), default="public", server_default="public")
+
+    tsv: Mapped[str | None] = mapped_column(
+        TSVECTOR,
+        Computed("to_tsvector('english', content_masked)", persisted=True),
+    )
+    embedding: Mapped[list[float] | None] = mapped_column(Vector(384))
+    embedding_model: Mapped[str | None] = mapped_column(String(100))
+
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "parent_type", "parent_id", "chunk_index", name="uq_chunk_position"),
+        Index("ix_chunks_tenant_parent", "tenant_id", "parent_type", "parent_id"),
+        Index("ix_chunks_tsv", "tsv", postgresql_using="gin"),
+    )    
