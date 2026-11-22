@@ -104,3 +104,17 @@ class TimelineEntry(BaseModel):
     field: str | None = None
     old_value: str | None = None
     new_value: str | None = None
+
+class AiAskRequest(BaseModel):
+    question: str
+
+class AiCitation(BaseModel):
+    parent_type: str
+    parent_id: str
+    chunk_index: int
+    distance: float
+
+class AiAskResponse(BaseModel):
+    answer: str
+    citations: list[AiCitation]
+    confidence: float    

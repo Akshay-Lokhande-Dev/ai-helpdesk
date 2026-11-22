@@ -19,7 +19,7 @@ def create_user(payload: UserCreate,
     password_hash = hash_func(payload.password) if payload.password else None
 
     user = models.User(
-        tenant_id=admin.tenant_id,            # admin ke token wale tenant se, body se nahi
+        tenant_id=admin.tenant_id,            
         email=payload.email.strip().lower(),
         name=payload.name,
         role=payload.role,
