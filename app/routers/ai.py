@@ -3,6 +3,7 @@ from app.db import session_local
 from app.deps import get_current_user
 from app.schemas import AiAskRequest, AiAskResponse
 from app.services.retrieval import retrieve
+from app.services.generate import generate_answer
 
 router = APIRouter(prefix="/ai", tags=["ai"])
 
@@ -16,11 +17,11 @@ def get_db():
 @router.post("/ask", response_model=AiAskResponse)
 def ai_ask(payload: AiAskRequest, db=Depends(get_db), current_user=Depends(get_current_user)):
     rows = retrieve(
-    db,
-    current_user,
-    question=payload.question,
-    limit=5,
-)
+        db,
+        current_user,
+        question=payload.question,
+        limit=5,
+    )
 
     if not rows:
         return {"answer": "I don't know", "citations": [], "confidence": 0.0}
@@ -31,7 +32,7 @@ def ai_ask(payload: AiAskRequest, db=Depends(get_db), current_user=Depends(get_c
         return {"answer": "I don't know", "citations": [], "confidence": 0.0}
 
     return {
-        "answer": best["content_masked"],
+        "answer": generate_answer(payload.question, rows),
         "citations": [
             {
                 "parent_type": r["parent_type"],
