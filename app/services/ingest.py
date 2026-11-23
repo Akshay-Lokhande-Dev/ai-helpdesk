@@ -1,8 +1,6 @@
 from app.models import ContentChunk
 from app.services.chunking import chunk_text, mask_pii, make_hash
-from app.services.embeddings import embed_texts
-
-EMBEDDING_MODEL = "all-MiniLM-L6-v2"
+from app.services.embeddings import EMBEDDING_MODEL, embed_texts
 
 def ingest_kb_article(db, article):
     body = (article.body or "").strip()
@@ -21,16 +19,22 @@ def ingest_kb_article(db, article):
         db.commit()
         return
 
+    # 1. Title ko bhi mask kar, aur Body ko bhi
+    masked_title = mask_pii(article.title or "")
     masked = mask_pii(body)
     chunks = chunk_text(masked)
-    hashes = [make_hash(c) for c in chunks]
+
+    # 2. Title + Body jod de - yehi main fix hai
+    combined_chunks = [f"{masked_title}\n\n{c}" for c in chunks]
+    hashes = [make_hash(c) for c in combined_chunks]
 
     to_embed_indices = []
     to_embed_texts = []
 
-    for i, (chunk, h) in enumerate(zip(chunks, hashes)):
+    for i, (chunk, h) in enumerate(zip(combined_chunks, hashes)):
         row = existing_by_idx.get(i)
-        if row and row.content_hash == h:
+        # 3. Skip tabhi karo jab hash + model dono same ho aur embedding bhi ho
+        if row and row.content_hash == h and row.embedding_model == EMBEDDING_MODEL and row.embedding is not None:
             if row.visibility != visibility:
                 row.visibility = visibility
         else:
@@ -42,7 +46,7 @@ def ingest_kb_article(db, article):
     for i, vec in zip(to_embed_indices, vecs):
         row = existing_by_idx.get(i)
         if row:
-            row.content_masked = chunks[i]
+            row.content_masked = combined_chunks[i]
             row.content_hash = hashes[i]
             row.visibility = visibility
             row.embedding = vec
@@ -53,7 +57,7 @@ def ingest_kb_article(db, article):
                 parent_type="kb_article",
                 parent_id=article.id,
                 chunk_index=i,
-                content_masked=chunks[i],
+                content_masked=combined_chunks[i],
                 content_hash=hashes[i],
                 visibility=visibility,
                 embedding=vec,
@@ -61,7 +65,7 @@ def ingest_kb_article(db, article):
             ))
 
     for idx, row in existing_by_idx.items():
-        if idx >= len(chunks):
+        if idx >= len(combined_chunks):
             db.delete(row)
 
     db.commit()
