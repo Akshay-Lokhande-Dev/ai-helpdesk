@@ -30,9 +30,9 @@ def _get_client() -> genai.Client | None:
     return _client
 
 
-def generate_answer(question: str, chunks: list) -> str:
+def generate_answer(question: str, chunks: list) -> dict:
     if not chunks:
-        return "I don't know."
+        return {"text": "I don't know.", "abstained": True, "fallback": False}
 
     context_parts = []
     for c in chunks:
@@ -42,12 +42,12 @@ def generate_answer(question: str, chunks: list) -> str:
             context_parts.append(text)
 
     if not context_parts:
-        return "I don't know."
+        return {"text": "I don't know.", "abstained": True, "fallback": False}
 
     client = _get_client()
     if client is None:
         logger.warning("GEMINI_API_KEY not set; falling back to top retrieved chunk.")
-        return context_parts[0]
+        return {"text": context_parts[0], "abstained": False, "fallback": True}
 
     context = "\n\n---\n\n".join(context_parts)
     user_prompt = f"CONTEXT:\n{context}\n\nQUESTION:\n{question}"
@@ -62,7 +62,12 @@ def generate_answer(question: str, chunks: list) -> str:
             ),
         )
         answer = (resp.text or "").strip()
-        return answer if answer else "I don't know."
+        if not answer:
+            return {"text": "I don't know.", "abstained": True, "fallback": False}
+        # Agar LLM ne I don't know bola, toh abstained True
+        if answer.lower().startswith("i don't know"):
+            return {"text": "I don't know.", "abstained": True, "fallback": False}
+        return {"text": answer, "abstained": False, "fallback": False}
     except Exception:
         logger.exception("Gemini generation failed; falling back to top retrieved chunk.")
-        return context_parts[0]
+        return {"text": context_parts[0], "abstained": False, "fallback": True}

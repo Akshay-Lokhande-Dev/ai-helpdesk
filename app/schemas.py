@@ -106,15 +106,16 @@ class TimelineEntry(BaseModel):
     new_value: str | None = None
 
 class AiAskRequest(BaseModel):
-    question: str
+    question: str = Field(min_length=3, max_length=500)
 
 class AiCitation(BaseModel):
     parent_type: str
     parent_id: str
+    title: str | None = None
     chunk_index: int
-    distance: float
 
 class AiAskResponse(BaseModel):
     answer: str
     citations: list[AiCitation]
-    confidence: float    
+    similarity: float | None
+    degraded: bool  

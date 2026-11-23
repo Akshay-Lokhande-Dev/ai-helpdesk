@@ -8,7 +8,6 @@ def ingest_kb_article(db, article):
     body = (article.body or "").strip()
     visibility = "public" if article.status == "published" else "internal"
 
-    # 1 hi query me saare existing chunks le aao (N+1 khatam)
     existing_rows = db.query(ContentChunk).filter(
         ContentChunk.tenant_id == article.tenant_id,
         ContentChunk.parent_type == "kb_article",
@@ -26,14 +25,12 @@ def ingest_kb_article(db, article):
     chunks = chunk_text(masked)
     hashes = [make_hash(c) for c in chunks]
 
-    # Sirf naye ya changed chunks ko hi embed ke liye nikalo
     to_embed_indices = []
     to_embed_texts = []
 
     for i, (chunk, h) in enumerate(zip(chunks, hashes)):
         row = existing_by_idx.get(i)
         if row and row.content_hash == h:
-            # Content same hai, bas visibility sync kar do
             if row.visibility != visibility:
                 row.visibility = visibility
         else:
@@ -63,7 +60,6 @@ def ingest_kb_article(db, article):
                 embedding_model=EMBEDDING_MODEL,
             ))
 
-    # Agar article chhota ho gaya ho toh extra purane chunks uda do
     for idx, row in existing_by_idx.items():
         if idx >= len(chunks):
             db.delete(row)

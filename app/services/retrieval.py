@@ -5,7 +5,7 @@ INTERNAL_ROLES = {"agent", "admin"}
 
 HYBRID_SQL = text("""
 WITH allowed AS (
-    SELECT c.id, c.content_masked, c.parent_type, c.parent_id, c.chunk_index, c.embedding, c.tsv
+    SELECT c.id, c.content_masked, c.parent_type, c.parent_id, c.chunk_index, c.embedding, c.tsv,k.title
     FROM content_chunks c
     LEFT JOIN kb_articles k
       ON c.parent_type = 'kb_article' AND k.id = c.parent_id AND k.tenant_id = c.tenant_id
@@ -30,7 +30,7 @@ kw AS (
     ORDER BY ts_rank(a.tsv, q.query) DESC
     LIMIT :pool
 )
-SELECT a.id, a.content_masked, a.parent_type, a.parent_id, a.chunk_index,
+SELECT a.id, a.content_masked, a.parent_type, a.parent_id, a.chunk_index,a.title,
        v.distance,
        COALESCE(1.0 / (60 + v.rnk), 0) + COALESCE(1.0 / (60 + k.rnk), 0) AS score
 FROM allowed a

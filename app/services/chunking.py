@@ -2,13 +2,13 @@ import re
 import hashlib
 
 def mask_pii(text: str) -> str:
-    # Avoids swallowing trailing sentence punctuation (e.g., "user@example.com.")
+    
     text = re.sub(
         r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)+",
         "[EMAIL]",
         text,
     )
-    # Catches 10-digit numbers with optional country code, spaces, dashes, or parentheses
+    
     text = re.sub(
         r"(?<!\w)(?:\+?\d{1,3}[-.\s]?)?(?:\(?\d{3}\)?[-.\s]?)\d{3}[-.\s]?\d{4}(?!\w)",
         "[PHONE]",

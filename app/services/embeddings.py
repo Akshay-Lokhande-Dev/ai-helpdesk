@@ -10,7 +10,7 @@ def get_model() -> SentenceTransformer:
     global _model
     if _model is None:
         with _model_lock:
-            if _model is None:  # Double-check after acquiring lock
+            if _model is None:  
                 _model = SentenceTransformer("all-MiniLM-L6-v2")
     return _model
 

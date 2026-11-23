@@ -1,45 +1,34 @@
 from fastapi import APIRouter, Depends
-from app.db import session_local
+
+from app.db import get_db
 from app.deps import get_current_user
 from app.schemas import AiAskRequest, AiAskResponse
-from app.services.retrieval import retrieve
 from app.services.generate import generate_answer
+from app.services.retrieval import retrieve
 
 router = APIRouter(prefix="/ai", tags=["ai"])
 
-def get_db():
-    db = session_local()
-    try:
-        yield db
-    finally:
-        db.close()
+MAX_DISTANCE = 0.65          # the only threshold; tune it with the eval
+
 
 @router.post("/ask", response_model=AiAskResponse)
 def ai_ask(payload: AiAskRequest, db=Depends(get_db), current_user=Depends(get_current_user)):
-    rows = retrieve(
-        db,
-        current_user,
-        question=payload.question,
-        limit=5,
-    )
-
+    rows = retrieve(db, current_user, question=payload.question, limit=5, max_distance=MAX_DISTANCE)
     if not rows:
-        return {"answer": "I don't know", "citations": [], "confidence": 0.0}
+        return {"answer": "I don't know.", "citations": [], "similarity": None, "degraded": False}
 
-    best = rows[0]
+    result = generate_answer(payload.question, rows)     # {"text", "abstained", "fallback"}
+    if result["abstained"]:
+        return {"answer": "I don't know.", "citations": [], "similarity": None, "degraded": False}
 
-    if best["distance"] > 0.8:
-        return {"answer": "I don't know", "citations": [], "confidence": 0.0}
-
+    distances = [r["distance"] for r in rows if r["distance"] is not None]
     return {
-        "answer": generate_answer(payload.question, rows),
+        "answer": result["text"],
         "citations": [
-            {
-                "parent_type": r["parent_type"],
-                "parent_id": str(r["parent_id"]),
-                "chunk_index": r["chunk_index"],
-                "distance": float(r["distance"]),
-            } for r in rows
+            {"parent_type": r["parent_type"], "parent_id": str(r["parent_id"]),
+             "title": r.get("title"), "chunk_index": r["chunk_index"]}
+            for r in rows
         ],
-        "confidence": round(1 - float(best["distance"]), 3),
+        "similarity": round(1 - min(distances), 3) if distances else None,
+        "degraded": result["fallback"],
     }
