@@ -2,8 +2,11 @@ import logging
 import os
 from google import genai
 from google.genai import types
+from app.services.chunking import mask_pii
+
 
 logger = logging.getLogger(__name__)
+
 
 LLM_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
 
@@ -50,6 +53,7 @@ def generate_answer(question: str, chunks: list) -> dict:
         return {"text": context_parts[0], "abstained": False, "fallback": True}
 
     context = "\n\n---\n\n".join(context_parts)
+    masked_question = mask_pii(question)
     user_prompt = f"CONTEXT:\n{context}\n\nQUESTION:\n{question}"
 
     try:
@@ -64,7 +68,6 @@ def generate_answer(question: str, chunks: list) -> dict:
         answer = (resp.text or "").strip()
         if not answer:
             return {"text": "I don't know.", "abstained": True, "fallback": False}
-        # Agar LLM ne I don't know bola, toh abstained True
         if answer.lower().startswith("i don't know"):
             return {"text": "I don't know.", "abstained": True, "fallback": False}
         return {"text": answer, "abstained": False, "fallback": False}

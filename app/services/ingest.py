@@ -19,12 +19,10 @@ def ingest_kb_article(db, article):
         db.commit()
         return
 
-    # 1. Title ko bhi mask kar, aur Body ko bhi
     masked_title = mask_pii(article.title or "")
     masked = mask_pii(body)
     chunks = chunk_text(masked)
 
-    # 2. Title + Body jod de - yehi main fix hai
     combined_chunks = [f"{masked_title}\n\n{c}" for c in chunks]
     hashes = [make_hash(c) for c in combined_chunks]
 
@@ -33,7 +31,6 @@ def ingest_kb_article(db, article):
 
     for i, (chunk, h) in enumerate(zip(combined_chunks, hashes)):
         row = existing_by_idx.get(i)
-        # 3. Skip tabhi karo jab hash + model dono same ho aur embedding bhi ho
         if row and row.content_hash == h and row.embedding_model == EMBEDDING_MODEL and row.embedding is not None:
             if row.visibility != visibility:
                 row.visibility = visibility
