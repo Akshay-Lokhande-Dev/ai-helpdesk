@@ -1,6 +1,12 @@
 from sqlalchemy import text
 from app.services.embeddings import EMBEDDING_MODEL, embed_texts
 
+import re
+
+def _or_query(q: str) -> str:
+    words = re.findall(r"[A-Za-z0-9]{3,}", q.lower())
+    return " | ".join(dict.fromkeys(words))
+
 INTERNAL_ROLES = {"agent", "admin"}
 
 HYBRID_SQL = text("""
@@ -25,7 +31,7 @@ vec AS (
 kw AS (
     SELECT a.id,
            row_number() OVER (ORDER BY ts_rank(a.tsv, q.query) DESC) AS rnk
-    FROM allowed a, websearch_to_tsquery('english', :q) AS q(query)
+    FROM allowed a, to_tsquery('english', :q_or) AS q(query)
     WHERE a.tsv @@ q.query
     ORDER BY ts_rank(a.tsv, q.query) DESC
     LIMIT :pool
@@ -38,7 +44,7 @@ LEFT JOIN vec v ON v.id = a.id
 LEFT JOIN kw  k ON k.id = a.id
 WHERE (v.id IS NOT NULL AND v.distance <= :max_distance) OR k.id IS NOT NULL
 ORDER BY score DESC
-LIMIT :limit
+LIMIT :fetch
 """)
 
 def retrieve(db, current_user, question: str, limit: int = 5,
@@ -53,9 +59,20 @@ def retrieve(db, current_user, question: str, limit: int = 5,
         "include_internal": current_user.role in INTERNAL_ROLES,
         "model": EMBEDDING_MODEL,
         "qvec": "[" + ",".join(map(str, q_vec)) + "]",
-        "q": question,
+        "q_or": _or_query(question),
         "pool": pool,
         "limit": limit,
+        "fetch": limit * 4,
         "max_distance": max_distance,
     }
-    return [dict(r) for r in db.execute(HYBRID_SQL, params).mappings().all()]
+    rows = [dict(r) for r in db.execute(HYBRID_SQL, params).mappings().all()]
+    seen, out = set(), []
+    for r in rows:
+        key = (r["parent_type"], r["parent_id"])
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(r)
+        if len(out) == limit:
+            break
+    return out
