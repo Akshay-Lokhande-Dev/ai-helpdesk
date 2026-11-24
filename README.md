@@ -1,36 +1,206 @@
 # AI Helpdesk
 
-A multi-tenant helpdesk (ITSM) backend built with Python, FastAPI and PostgreSQL. Each customer company is a *tenant*, with its own users, tickets and comments. The project explores ServiceNow-inspired ticket workflows and AI-assisted support answers grounded in knowledge-base content with citations.
+A multi-tenant IT service management (ITSM) backend built with Python, FastAPI, and PostgreSQL. It provides tenant-scoped ticket workflows and an AI knowledge assistant that retrieves relevant knowledge-base (KB) content before generating an answer.
 
-**Status: in progress.** Core ticketing, authentication, role-based access, comments, activity timelines, knowledge-base ingestion services, hybrid retrieval, and the AI question endpoint are implemented. ServiceNow migration and production deployment are not currently implemented.
+**Project status: in progress.** Ticket management, authentication, role-based access, comments, activity timelines, KB ingestion services, hybrid retrieval, and the authenticated AI question endpoint are implemented. ServiceNow migration, a public KB management API, a frontend, and production deployment are not implemented.
 
 ## What works today
 
-- **Multi-tenant database design (PostgreSQL + SQLAlchemy):** tables for tenants, users, tickets, ticket comments, ticket events, knowledge-base articles, and content chunks.
-- **Tenant-aware access:** ticket and AI retrieval queries are scoped to the authenticated user's tenant. End users see their own tickets; agents and admins have broader tenant-scoped visibility.
-- **Authentication:** JWT login, 30-minute access tokens, Argon2 password hashing, and protected routes.
-- **Role-based access control:** admin, agent, and end-user roles.
-- **Ticket management:** create and list tickets, retrieve by ticket number, and update state, priority, assignee, and resolution (agent/admin only).
-- **Comments and visibility:** public and internal comments. End users see public comments; agents and admins can see both.
-- **Activity timeline:** ticket creation and field-change events combined with comments. End-user timeline output is filtered.
-- **Alembic migrations:** versioned database schema migrations, including pgvector and full-text search support.
-- **Knowledge-base ingestion service:** article chunking, content hashing, embedding generation, and synchronization of stored chunks with article content and publication status.
-- **AI question endpoint:** authenticated `POST /ai/ask` retrieves tenant-scoped context, generates a grounded answer with Gemini, and returns citation metadata.
-- **Hybrid retrieval:** pgvector semantic search combined with PostgreSQL full-text search and Reciprocal Rank Fusion (RRF), with a distance gate and a maximum of two chunks per parent article.
-- **Evaluation and tests:** golden-set evaluation scripts, tenant-isolation checks, and AI API tests.
+- **Multi-tenant data model:** tenants, users, tickets, ticket comments, ticket events, KB articles, and content chunks in PostgreSQL using SQLAlchemy.
+- **Authentication and authorization:** JWT access tokens, Argon2 password hashing, and admin, agent, and end-user roles.
+- **Ticket workflows:** create, list, and retrieve visible tickets; agents and admins can update ticket state, priority, assignee, and resolution.
+- **Comments and timeline:** public/internal comments and a timeline combining comments with ticket events. End users receive filtered views.
+- **Tenant-scoped access:** ticket queries and AI retrieval are scoped to the authenticated user's tenant. End users see their own tickets; agents and admins have broader access within their tenant.
+- **KB ingestion service:** chunking, content hashing, embedding generation, and synchronization of stored chunks when articles change or are re-ingested.
+- **AI question endpoint:** authenticated `POST /ai/ask` retrieves tenant-scoped KB context, generates a grounded answer using Gemini, and returns citation metadata.
+- **Hybrid retrieval:** pgvector semantic search and PostgreSQL full-text search (FTS) combined using Reciprocal Rank Fusion (RRF).
+- **Evaluation and tests:** golden-set evaluation, Tenant B retrieval stress-test scripts, cross-tenant isolation checks, and AI API tests.
 
-## Current limitations
+## AI and RAG architecture
 
-- **No ServiceNow migration workflow yet.** Idempotent import, dry-run, and reconciliation are future work.
-- **No public knowledge-base management API yet.** Ingestion currently exists as a Python service and supporting scripts, rather than a complete set of article CRUD endpoints.
-- **No frontend UI.** The project currently exposes a backend API and Swagger documentation.
-- **No production deployment or production observability setup yet.**
-- The user lookup route `GET /users/test/{user_id}` is a development/test route and currently lacks authentication. It should be restricted or removed before production use.
-- Ticket numbers are generated as random `T-XXXXXXXX` identifiers.
+### Request flow
 
-## Run it locally
+1. An authenticated user sends a question to `POST /ai/ask`.
+2. The question is embedded using `all-MiniLM-L6-v2`.
+3. Retrieval is restricted in SQL to the authenticated user's tenant and the knowledge visibility allowed for their role.
+4. The retrieval query runs vector similarity search with pgvector and keyword search using PostgreSQL FTS.
+5. The two ranked result sets are combined using Reciprocal Rank Fusion (RRF).
+6. A hybrid distance gate filters weak matches. FTS matches can be included only when their vector distance is within the configured additional allowance.
+7. Retrieval returns up to five chunks, with a maximum of two chunks per parent article.
+8. Retrieved context and the question are sent to Gemini with instructions to answer only from the supplied context.
+9. The API returns the answer, citation metadata, similarity where available, and a `degraded` flag.
 
-Requirements: Python 3.12+, Docker and Docker Compose. The Dockerfile uses Python 3.12 and the Compose configuration runs PostgreSQL 16 with the pgvector image.
+### Retrieval guardrails
+
+- **SQL-level tenant isolation:** the retrieval query filters content chunks by the authenticated user's tenant before ranking. A user from another tenant cannot retrieve another tenant's KB content, including when the user has an admin role.
+- **Role-aware KB visibility:** end users retrieve published KB articles; agents and admins can also retrieve internal KB content.
+- **Hybrid distance gate:** vector distance is checked against `max_distance`. An FTS match may be rescued only when its distance is no greater than `max_distance + 0.15`.
+- **Parent-level diversity:** no more than two chunks from the same parent article are returned.
+- **Abstention:** if retrieval returns no relevant context, the API responds with `I don't know.` without invoking the LLM. The Gemini system instruction also requires `I don't know.` when the supplied context does not contain the answer.
+
+Cross-tenant requests are blocked by tenant-scoped SQL retrieval; the LLM is not used to enforce tenant boundaries. The abstention response is the user-facing behaviour when no permitted context is available.
+
+### Degraded fallback
+
+If `GEMINI_API_KEY` is missing or Gemini generation fails, the generation service returns the top retrieved chunk as a fallback. The API sets `degraded: true` to indicate that the response did not come from normal Gemini generation. This fallback is not equivalent to a generated, context-synthesized answer.
+
+### Citation response
+
+The AI response includes citation metadata for the retrieved source, including `parent_type`, `parent_id`, `title`, and `chunk_index`. It also includes a similarity value where available and the `degraded` status.
+
+## Evaluation-driven engineering
+
+Evaluation exposed retrieval and answer-generation edge cases. The following changes were made in response to those failures:
+
+### 1. Keep useful chunks from the same article
+
+Retrieval originally risked dropping later troubleshooting or footer content when deduplicating by article. The per-parent limit was changed to allow up to **two chunks per article**, preserving relevant sections such as `chunk_index=1` without allowing one article to dominate the context.
+
+### 2. Gate keyword matches using vector distance
+
+FTS can find exact technical terms even when semantic similarity is weaker, but keyword matches alone can introduce unrelated content. The hybrid query therefore allows a keyword match only when its vector distance is within `max_distance + 0.15`. This helped retain exact-term matches such as Okta metadata XML while filtering unrelated queries.
+
+### 3. Distinguish unsupported features from missing information
+
+The Gemini system prompt was revised to answer clearly when retrieved documentation explicitly says a feature is unsupported or a user is ineligible. Examples include SMS 2FA and auto-renewal refunds. This avoids treating an explicit negative answer as a reason to abstain.
+
+### 4. Preserve official contact details in curated KB content
+
+`mask_pii()` was removed from curated KB article ingestion so legitimate support and billing email addresses remain searchable and available in answers. PII masking remains applied to incoming user questions before they are sent to Gemini.
+
+## Evaluation and benchmarks
+
+The following are reported local results for the datasets and configurations described. Retrieval latency depends on the machine, database state, and embedding model warm-up; it should not be interpreted as a production SLA.
+
+### Tenant A — Golden Set
+
+**Dataset:** 21 KB articles and 55 questions: 42 answerable and 13 unanswerable.
+
+| Metric | Result |
+|---|---:|
+| Retrieval Hit@1 (answerable) | 41/42 (98%) |
+| Retrieval Recall@5 (answerable) | 42/42 (100%) |
+| Unanswerable / abstention accuracy | 100% |
+
+The checked-in `golden_set.json` contains 55 queries. Run the evaluation against a database seeded with the matching Tenant A KB content:
+
+```bash
+python eval_golden.py
+python eval_golden.py --retrieval-only
+```
+
+### Tenant B — FastAPI documentation stress test
+
+**Dataset:** 50 real-world FastAPI Markdown documents, ingested as 472 chunks in Tenant B.
+
+| Measurement | Reported result |
+|---|---:|
+| Average retrieval latency (CPU) | ~35.2 ms |
+| Maximum retrieval latency (CPU) | 143.7 ms |
+| Degradation to Tenant A golden-set results | 0% |
+| End-to-end Tenant B LLM evaluation | 5/5 passed |
+
+The stress test checks in-domain FastAPI questions and cross-tenant retrieval attempts. The separate LLM evaluation is implemented in `scripts/eval_tenant_b_llm.py`.
+
+```bash
+python -m scripts.seed_fastapi_tenant_b
+python -m scripts.stress_test_b
+python -m scripts.eval_tenant_b_llm
+```
+
+The FastAPI seeding script expects Markdown documentation under `/tmp/fastapi-docs/docs/en/docs`.
+
+### Tenant B — Customer support FAQ retrieval benchmark
+
+**Dataset:** `MakTek/Customer_support_faqs_dataset`, with 200 FAQ articles and approximately 672 total chunks in Tenant B.
+
+| Metric | Reported result |
+|---|---:|
+| Retrieval Hit@1 | 194/200 (97.0%) |
+| Retrieval Recall@5 | 200/200 (100.0%) |
+| Average retrieval latency (CPU) | ~225.0 ms |
+
+This is a retrieval benchmark: each FAQ question is used to check whether its corresponding article is retrieved. It does not measure generated-answer correctness.
+
+```bash
+python -m scripts.evals_support_faqs
+```
+
+### Cross-tenant isolation checks
+
+Reported checks found no cross-tenant data leakage across:
+
+- SQL retrieval constrained by tenant ID.
+- `parent_id` disjointness assertions between tenant datasets, including queries performed as a Tenant B admin.
+- End-to-end Tenant B LLM evaluation, where cross-tenant content is not available as retrieved context.
+
+These checks provide evidence for the tested datasets and queries; they are not a formal security audit.
+
+## Tests
+
+Run the test suite:
+
+```bash
+pytest -v
+```
+
+The checked-in tests cover:
+
+- `tests/test_isolation.py`: retrieval of a tenant's own content, cross-tenant isolation for Tenant B admins, tenant separation for FastAPI documentation, and out-of-domain threshold blocking.
+- `tests/test_ai_api.py`: authentication enforcement for `/ai/ask`, citation-bearing responses (with mocked generation), retrieval-level abstention, LLM-level abstention, and HTTP-level tenant isolation.
+
+**Test-count note:** the current checked-in `tests/test_isolation.py` defines `test_tenant_b_admin_cannot_see_tenant_a_data` twice. The later definition shadows the earlier one during Python module import. Together, the two test files therefore contain eight distinct collected test functions as currently committed. A reported 9/9 run may refer to a different local revision; rename or restore the additional test before describing the current repository state as 9/9.
+
+Tests use a configured database with the expected tenant and KB seed data. They are not currently set up as isolated, self-provisioning CI tests.
+
+## API endpoints
+
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/health` | Application health check |
+| GET | `/db-check` | Database connectivity check |
+| POST | `/auth/login` | Authenticate using tenant slug, email, and password |
+| GET | `/auth/me` | Get the current authenticated user |
+| POST | `/users` | Create a user (admin only) |
+| GET | `/users/test/{user_id}` | Development/test user lookup; currently unauthenticated |
+| GET | `/tickets` | List up to 50 tickets visible to the current user |
+| POST | `/tickets` | Create a ticket for the current user |
+| GET | `/tickets/{ticket_number}` | Retrieve a visible ticket by ticket number |
+| PATCH | `/tickets/{ticket_id}` | Update ticket fields (agent/admin only) |
+| POST | `/tickets/{ticket_id}/comments` | Add a comment |
+| GET | `/tickets/{ticket_id}/comments` | List comments visible to the current user |
+| GET | `/tickets/{ticket_id}/timeline` | Retrieve the ticket activity timeline |
+| POST | `/ai/ask` | Retrieve KB context and generate an AI-assisted answer |
+
+Interactive API documentation is available at `http://127.0.0.1:8000/docs` when the application is running.
+
+## Technology
+
+| Area | Technology |
+|---|---|
+| Language | Python 3.12 |
+| API framework | FastAPI |
+| Validation | Pydantic |
+| Database | PostgreSQL 16 |
+| ORM and migrations | SQLAlchemy, Alembic |
+| Vector search | pgvector |
+| Full-text search | PostgreSQL TSVECTOR / FTS |
+| Embeddings | Sentence Transformers, `all-MiniLM-L6-v2` (384 dimensions) |
+| LLM | Google Gemini |
+| Authentication | JWT |
+| Password hashing | Argon2 |
+| Local database environment | Docker Compose |
+| Tests | Pytest, FastAPI TestClient |
+
+## Run locally
+
+### Requirements
+
+- Python 3.12
+- Docker and Docker Compose
+- A Gemini API key for normal LLM answer generation
+
+### Setup
 
 ```bash
 git clone https://github.com/Akshay-Lokhande-Dev/ai-helpdesk.git
@@ -41,18 +211,16 @@ source .venv/bin/activate
 pip install -r requirements.txt
 
 cp .env.example .env
-# Edit .env and provide the required values.
+# Edit .env and add the values listed below.
 
 docker compose up -d
 alembic upgrade head
 uvicorn app.main:app --reload
 ```
 
-Open `http://127.0.0.1:8000/docs` for the interactive API documentation.
-
 ### Environment variables
 
-Configure these values in `.env`:
+Set the database credentials and connection string in `.env`. The Compose file exposes PostgreSQL on host port `5433`:
 
 ```env
 POSTGRES_USER=your_database_user
@@ -64,42 +232,89 @@ GEMINI_API_KEY=your_gemini_api_key
 GEMINI_MODEL=gemini-3.5-flash-lite
 ```
 
-The database container is exposed on host port **5433**. Keep `.env` private and never commit API keys or credentials.
+`SECRET_KEY` is needed for JWT signing. `GEMINI_API_KEY` enables Gemini generation; without it, the service uses the degraded top-chunk fallback described above. Do not commit `.env` or real credentials.
 
-The `GEMINI_API_KEY` is required for Gemini answer generation. When it is absent or Gemini generation fails, the current implementation can fall back to the top retrieved chunk and mark the response as degraded.
+### Useful commands
 
-## API endpoints
-
-### Health
-
-| Method | Endpoint | Description |
-|---|---|---|
-| GET | `/health` | Application health check |
-| GET | `/db-check` | Database connectivity check |
-
-### Authentication
-
-**Key fixes driven by eval failures:**
-- **2 chunks per article:** Allowed up to 2 chunks per article in deduplication so troubleshooting/footer sections (`chunk_index=1`) aren't dropped.
-- **Hybrid distance gate:** Gated FTS keyword matches with `distance <= max_distance + 0.15` to block unrelated queries while still rescuing exact technical terms (e.g., Okta metadata XML).
-- **Negative-answer prompting:** Updated system instructions so explicitly unsupported/ineligible features (e.g., SMS 2FA, auto-renewal refunds) are answered directly instead of triggering false abstentions.
-- **KB PII masking fix:** Removed `mask_pii()` from curated KB article ingestion (while keeping it on incoming user queries) so official support/billing emails remain intact.
-
-
-## Evaluation & Benchmarks
-
-### 1. Golden Set Evaluation (Tenant A — 21 KB Articles, 55 Queries)
-- **Retrieval Hit@1 (Answerable):** 41/42 (98%)
-- **Retrieval Recall@5 (Answerable):** 42/42 (100%)
-- **Unanswerable / Abstention Accuracy:** 100% (hybrid threshold + grounded LLM guardrail)
-
-### 2. Multi-Tenant Scale & Isolation Stress Test (Tenant B — 472 FastAPI Doc Chunks)
-- Ingested 50 real-world FastAPI Markdown docs (**472 chunks**) into a secondary tenant (`Tenant B`) to test noisy-neighbor interference and real messy formatting.
-- **Average Retrieval Latency:** ~35.2ms (max 143.7ms) across 472 chunks on CPU.
-- **Noisy-Neighbor Impact:** 0% degradation on Tenant A's golden set scores.
-- **Cross-Tenant Isolation:** 0% data leakage verified across both SQL retrieval and end-to-end LLM generation (5/5 pass on `scripts/eval_tenant_b_llm.py`).
-
-### 3. Automated Integration Tests (`pytest`)
-Run the full suite:
 ```bash
+# Start the database
+docker compose up -d
+
+# Apply database migrations
+alembic upgrade head
+
+# Run the API
+uvicorn app.main:app --reload
+
+# Run tests
 pytest -v
+
+# Run the golden-set evaluation
+python eval_golden.py
+```
+
+## Project structure
+
+```text
+ai-helpdesk/
+├── app/
+│   ├── routers/
+│   │   ├── ai.py
+│   │   ├── auth.py
+│   │   ├── comments.py
+│   │   ├── tickets.py
+│   │   ├── timeline.py
+│   │   └── users.py
+│   ├── services/
+│   │   ├── chunking.py
+│   │   ├── embeddings.py
+│   │   ├── generate.py
+│   │   ├── ingest.py
+│   │   └── retrieval.py
+│   ├── auth.py
+│   ├── db.py
+│   ├── deps.py
+│   ├── models.py
+│   ├── queries.py
+│   ├── schemas.py
+│   └── main.py
+├── alembic/
+│   └── versions/
+├── scripts/
+│   ├── eval_tenant_b_llm.py
+│   ├── evals_support_faqs.py
+│   ├── seed_fastapi_tenant_b.py
+│   ├── smoke_test.py
+│   └── stress_test_b.py
+├── tests/
+│   ├── test_ai_api.py
+│   └── test_isolation.py
+├── eval_golden.py
+├── golden_set.json
+├── Dockerfile
+├── docker-compose.yml
+├── requirements.txt
+├── .env.example
+├── alembic.ini
+└── ERRORS.md
+```
+
+## Current limitations
+
+- No ServiceNow migration or import/reconciliation workflow yet.
+- No public KB CRUD or document-upload API; KB ingestion is currently implemented as an internal service and scripts.
+- No frontend UI.
+- No production deployment, production monitoring, or observability setup.
+- `GET /users/test/{user_id}` is currently unauthenticated and should be removed or protected before production use.
+- Ticket numbers are generated as random `T-XXXXXXXX` identifiers.
+
+## Author
+
+**Akshay Lokhande**
+
+- GitHub: [Akshay-Lokhande-Dev](https://github.com/Akshay-Lokhande-Dev)
+- Repository: [ai-helpdesk](https://github.com/Akshay-Lokhande-Dev/ai-helpdesk)
+
+---
+
+Built as a practical project to explore backend engineering, tenant-aware ITSM workflows, hybrid retrieval, and evaluation-driven RAG development.
