@@ -19,11 +19,11 @@ def ingest_kb_article(db, article):
         db.commit()
         return
 
-    masked_title = mask_pii(article.title or "")
-    masked = mask_pii(body)
-    chunks = chunk_text(masked)
+    clean_title = (article.title or "").strip()
+    chunks = chunk_text(body)
+    
 
-    combined_chunks = [f"{masked_title}\n\n{c}" for c in chunks]
+    combined_chunks = [f"{clean_title}\n\n{c}" for c in chunks]
     hashes = [make_hash(c) for c in combined_chunks]
 
     to_embed_indices = []

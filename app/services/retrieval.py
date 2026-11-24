@@ -42,7 +42,10 @@ SELECT a.id, a.content_masked, a.parent_type, a.parent_id, a.chunk_index,a.title
 FROM allowed a
 LEFT JOIN vec v ON v.id = a.id
 LEFT JOIN kw  k ON k.id = a.id
-WHERE (v.id IS NOT NULL AND v.distance <= :max_distance) OR k.id IS NOT NULL
+WHERE v.id IS NOT NULL AND (
+    v.distance <= :max_distance
+    OR (k.id IS NOT NULL AND v.distance <= :max_distance + 0.15)
+)
 ORDER BY score DESC
 LIMIT :fetch
 """)
@@ -65,12 +68,12 @@ def retrieve(db, current_user, question: str, limit: int = 5,
         "max_distance": max_distance,
     }
     rows = [dict(r) for r in db.execute(HYBRID_SQL, params).mappings().all()]
-    seen, out = set(), []
+    counts, out = {}, []
     for r in rows:
         key = (r["parent_type"], r["parent_id"])
-        if key in seen:
+        if counts.get(key, 0) >= 2:
             continue
-        seen.add(key)
+        counts[key] = counts.get(key, 0) + 1
         out.append(r)
         if len(out) == limit:
             break

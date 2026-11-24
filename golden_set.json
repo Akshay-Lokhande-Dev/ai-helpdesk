@@ -1,0 +1,152 @@
+[
+  {
+    "question": "my laptop wifi wont connect pls help",
+    "expected_title": "WiFi not connecting",
+    "answerable": true
+  },
+  {
+    "question": "internet not working on wifi",
+    "expected_title": "WiFi not connecting",
+    "answerable": true
+  },
+  {
+    "question": "where do i download last months invoice pdf?",
+    "expected_title": "Downloading invoices and updating billing details",
+    "answerable": true
+  },
+  {
+    "question": "can u edit an old invoice to add our GST tax id",
+    "expected_title": "Downloading invoices and updating billing details",
+    "answerable": true
+  },
+  {
+    "question": "forgot my pasword cant log in",
+    "expected_title": "How to reset your account password",
+    "answerable": true
+  },
+  {
+    "question": "didnt get the password reset email after 5 mins, what now?",
+    "expected_title": "How to reset your account password",
+    "answerable": true
+  },
+  {
+    "question": "getting HTTP 401 Unauthorized after rotating api key",
+    "expected_title": "How to regenerate or revoke an API key",
+    "answerable": true
+  },
+  {
+    "question": "how to rotate api keys without downtime?",
+    "expected_title": "How to regenerate or revoke an API key",
+    "answerable": true
+  },
+  {
+    "question": "is SAML SSO included in the Pro plan?",
+    "expected_title": "Single Sign-On (SSO) plan availability and SAML 2.0 setup",
+    "answerable": true
+  },
+  {
+    "question": "where do i upload the Okta metadata XML file for SSO",
+    "expected_title": "Single Sign-On (SSO) plan availability and SAML 2.0 setup",
+    "answerable": true
+  },
+  {
+    "question": "will my tickets get deleted if i cancel my paid plan?",
+    "expected_title": "How to cancel or downgrade your subscription",
+    "answerable": true
+  },
+  {
+    "question": "how do i downgrade back to the free tier",
+    "expected_title": "How to cancel or downgrade your subscription",
+    "answerable": true
+  },
+  {
+    "question": "how long before a team invite link expires?",
+    "expected_title": "Inviting team members and understanding user roles",
+    "answerable": true
+  },
+  {
+    "question": "do Viewer seats cost extra on the Pro plan",
+    "expected_title": "Inviting team members and understanding user roles",
+    "answerable": true
+  },
+  {
+    "question": "lost my phone and 2FA backup codes, how do i get back in?",
+    "expected_title": "Setting up and recovering Two-Factor Authentication (2FA)",
+    "answerable": true
+  },
+  {
+    "question": "can i use SMS text messages for two factor auth?",
+    "expected_title": "Setting up and recovering Two-Factor Authentication (2FA)",
+    "answerable": true
+  },
+  {
+    "question": "how do i permantly delete my workspace",
+    "expected_title": "How to permanently delete your workspace and data",
+    "answerable": true
+  },
+  {
+    "question": "how long does it take to wipe deleted workspace data from backups?",
+    "expected_title": "How to permanently delete your workspace and data",
+    "answerable": true
+  },
+  {
+    "question": "getting HTTP 429 Too Many Requests on api calls",
+    "expected_title": "API rate limits, HTTP 429 errors, and best practices",
+    "answerable": true
+  },
+  {
+    "question": "what is the per minute api limit on the free plan?",
+    "expected_title": "API rate limits, HTTP 429 errors, and best practices",
+    "answerable": true
+  },
+  {
+    "question": "my subscription auto renewed 2 days ago, can i get a refund?",
+    "expected_title": "Refund policy, eligibility, and processing timelines",
+    "answerable": true
+  },
+  {
+    "question": "how many days for an approved refund to hit my bank account",
+    "expected_title": "Refund policy, eligibility, and processing timelines",
+    "answerable": true
+  },
+  {
+    "question": "how do i connect Slack notifications for new tickets?",
+    "expected_title": "",
+    "answerable": false
+  },
+  {
+    "question": "where can i download the Android mobile app?",
+    "expected_title": "",
+    "answerable": false
+  },
+  {
+    "question": "webhook signature verification failing with invalid hash",
+    "expected_title": "",
+    "answerable": false
+  },
+  {
+    "question": "how to turn on dark mode in the dashboard?",
+    "expected_title": "",
+    "answerable": false
+  },
+  {
+    "question": "is it going to rain today?",
+    "expected_title": "",
+    "answerable": false
+  },
+  {
+    "question": "give me a quick recipe for pasta",
+    "expected_title": "",
+    "answerable": false
+  },
+  {
+    "question": "who won the cricket match last night?",
+    "expected_title": "",
+    "answerable": false
+  },
+  {
+    "question": "whats the fastest train from Mumbai to Delhi?",
+    "expected_title": "",
+    "answerable": false
+  }
+]

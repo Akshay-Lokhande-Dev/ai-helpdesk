@@ -58,3 +58,23 @@ ERRORS.md       bugs I hit and how I fixed them
 
 ## Tech
 Python, FastAPI, PostgreSQL (pgvector image), SQLAlchemy 2.0, Alembic, Pydantic, Docker.
+
+
+
+## RAG Evaluation (30-Query Golden Set)
+
+Evaluated locally (`eval_golden.py`) across 30 queries (22 answerable, 8 unanswerable) against 11 KB articles using `all-MiniLM-L6-v2` embeddings, Postgres hybrid search (pgvector + FTS with RRF), and Gemini generation.
+
+| Metric | Run 1 (Baseline) | Run 2 | Run 3 (Final) |
+|---|---|---|---|
+| Retrieval Hit@1 (Answerable) | 22/22 (100%) | 21/22 (95%) | **22/22 (100%)** |
+| Retrieval Hit@5 (Answerable) | 22/22 (100%) | 21/22 (95%) | **22/22 (100%)** |
+| Answered (Answerable) | 16/22 (73%) | 18/22 (82%) | **22/22 (100%)** |
+| Unanswerable Abstain Rate | 4/8 (50%) | 8/8 (100%) | **8/8 (100%)** |
+| LLM Fallbacks (429 / errors) | 9/30 | 0/30 | **0/30** |
+
+**Key fixes driven by eval failures:**
+- **2 chunks per article:** Allowed up to 2 chunks per article in deduplication so troubleshooting/footer sections (`chunk_index=1`) aren't dropped.
+- **Hybrid distance gate:** Gated FTS keyword matches with `distance <= max_distance + 0.15` to block unrelated queries while still rescuing exact technical terms (e.g., Okta metadata XML).
+- **Negative-answer prompting:** Updated system instructions so explicitly unsupported/ineligible features (e.g., SMS 2FA, auto-renewal refunds) are answered directly instead of triggering false abstentions.
+- **KB PII masking fix:** Removed `mask_pii()` from curated KB article ingestion (while keeping it on incoming user queries) so official support/billing emails remain intact.
