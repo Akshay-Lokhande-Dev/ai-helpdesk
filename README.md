@@ -79,6 +79,7 @@ The `GEMINI_API_KEY` is required for Gemini answer generation. When it is absent
 
 ### Authentication
 
+<<<<<<< HEAD
 | Method | Endpoint | Description |
 |---|---|---|
 | POST | `/auth/login` | Authenticate with tenant slug, email, and password |
@@ -298,3 +299,29 @@ ai-helpdesk/
 ---
 
 Built as a hands-on project exploring backend engineering, ITSM workflows, multi-tenant systems, and practical Retrieval-Augmented Generation (RAG).
+=======
+**Key fixes driven by eval failures:**
+- **2 chunks per article:** Allowed up to 2 chunks per article in deduplication so troubleshooting/footer sections (`chunk_index=1`) aren't dropped.
+- **Hybrid distance gate:** Gated FTS keyword matches with `distance <= max_distance + 0.15` to block unrelated queries while still rescuing exact technical terms (e.g., Okta metadata XML).
+- **Negative-answer prompting:** Updated system instructions so explicitly unsupported/ineligible features (e.g., SMS 2FA, auto-renewal refunds) are answered directly instead of triggering false abstentions.
+- **KB PII masking fix:** Removed `mask_pii()` from curated KB article ingestion (while keeping it on incoming user queries) so official support/billing emails remain intact.
+
+
+## Evaluation & Benchmarks
+
+### 1. Golden Set Evaluation (Tenant A — 21 KB Articles, 55 Queries)
+- **Retrieval Hit@1 (Answerable):** 41/42 (98%)
+- **Retrieval Recall@5 (Answerable):** 42/42 (100%)
+- **Unanswerable / Abstention Accuracy:** 100% (hybrid threshold + grounded LLM guardrail)
+
+### 2. Multi-Tenant Scale & Isolation Stress Test (Tenant B — 472 FastAPI Doc Chunks)
+- Ingested 50 real-world FastAPI Markdown docs (**472 chunks**) into a secondary tenant (`Tenant B`) to test noisy-neighbor interference and real messy formatting.
+- **Average Retrieval Latency:** ~35.2ms (max 143.7ms) across 472 chunks on CPU.
+- **Noisy-Neighbor Impact:** 0% degradation on Tenant A's golden set scores.
+- **Cross-Tenant Isolation:** 0% data leakage verified across both SQL retrieval and end-to-end LLM generation (5/5 pass on `scripts/eval_tenant_b_llm.py`).
+
+### 3. Automated Integration Tests (`pytest`)
+Run the full suite:
+```bash
+pytest -v
+>>>>>>> bfb395f (Add multi-tenant stress tests (FastAPI docs + 200 support FAQs) and 9 pytest integration tests)

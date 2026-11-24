@@ -1,5 +1,6 @@
 from types import SimpleNamespace
 import pytest
+from app.models import KBArticle
 
 from app.db import session_local
 from app.routers.ai import MAX_DISTANCE
@@ -52,3 +53,19 @@ def test_out_of_domain_query_blocked_by_threshold(db):
     rows = retrieve(db, user_a, question="give me a quick recipe for pasta", limit=5, max_distance=MAX_DISTANCE)
 
     assert rows == []
+
+def test_tenant_b_admin_cannot_see_tenant_a_data(db):
+    # Admin role hone ke baad bhi Tenant A ka koi bhi article ID leak nahi hona chahiye
+    admin_b = SimpleNamespace(tenant_id=TENANT_B_ID, role="admin")
+
+    tenant_a_ids = {
+        str(row[0])
+        for row in db.query(KBArticle.id).filter(KBArticle.tenant_id == TENANT_A_ID).all()
+    }
+
+    wifi_rows = retrieve(db, admin_b, question="my laptop wifi wont connect pls help", limit=5, max_distance=MAX_DISTANCE)
+    assert wifi_rows == []
+
+    refund_rows = retrieve(db, admin_b, question="how do I request a refund for my subscription?", limit=5, max_distance=MAX_DISTANCE)
+    returned_ids = {str(r["parent_id"]) for r in refund_rows}
+    assert returned_ids.isdisjoint(tenant_a_ids)
