@@ -61,7 +61,6 @@ def retrieve(db, current_user, question: str, limit: int = 5,
         "qvec": "[" + ",".join(map(str, q_vec)) + "]",
         "q_or": _or_query(question),
         "pool": pool,
-        "limit": limit,
         "fetch": limit * 4,
         "max_distance": max_distance,
     }

@@ -38,6 +38,7 @@ def generate_answer(question: str, chunks: list) -> dict:
     for c in chunks:
         text = c.get("content_masked", "") if isinstance(c, dict) else getattr(c, "content_masked", "")
         text = (text or "").strip()
+        text = text.replace("<context>", "").replace("</context>", "")
         if text:
             context_parts.append(text)
 
@@ -62,6 +63,8 @@ def generate_answer(question: str, chunks: list) -> dict:
             ),
         )
         answer = (resp.text or "").strip()
+        if not answer:
+            return {"text": "I don't know.", "abstained": True, "fallback": False}
         is_abstain = answer.lower().replace("’", "'").startswith("i don't know")
         if is_abstain:
             return {"text": "I don't know.", "abstained": True, "fallback": False}
