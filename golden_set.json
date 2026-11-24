@@ -148,5 +148,130 @@
     "question": "whats the fastest train from Mumbai to Delhi?",
     "expected_title": "",
     "answerable": false
+  },
+  {
+    "question": "entered wrong password 5 times and now my account is locked, how long do i wait?",
+    "expected_title": "Account locked after failed login attempts",
+    "answerable": true
+  },
+  {
+    "question": "can my workspace admin unlock my account right away without waiting 15 mins?",
+    "expected_title": "Account locked after failed login attempts",
+    "answerable": true
+  },
+  {
+    "question": "can free plan users log in with Continue with Google?",
+    "expected_title": "Signing in with Google OAuth and session timeout policies",
+    "answerable": true
+  },
+  {
+    "question": "how many days before an idle browser session logs me out automatically?",
+    "expected_title": "Signing in with Google OAuth and session timeout policies",
+    "answerable": true
+  },
+  {
+    "question": "my renewal card got declined, will my workspace get suspended right away?",
+    "expected_title": "Handling failed payments, declined cards, and grace periods",
+    "answerable": true
+  },
+  {
+    "question": "how many times do you retry a failed subscription payment?",
+    "expected_title": "Handling failed payments, declined cards, and grace periods",
+    "answerable": true
+  },
+  {
+    "question": "if i add a Pro seat in the middle of the month do i pay full price?",
+    "expected_title": "Upgrading your plan and prorated billing explained",
+    "answerable": true
+  },
+  {
+    "question": "is there a discount if we switch from monthly to annual billing?",
+    "expected_title": "Upgrading your plan and prorated billing explained",
+    "answerable": true
+  },
+  {
+    "question": "if i deactivate an employee who left, will their old ticket replies be deleted?",
+    "expected_title": "Removing or deactivating a team member",
+    "answerable": true
+  },
+  {
+    "question": "what happens to open tickets assigned to a deactivated agent?",
+    "expected_title": "Removing or deactivating a team member",
+    "answerable": true
+  },
+  {
+    "question": "my API key is active but im getting HTTP 403 Forbidden when creating a ticket",
+    "expected_title": "API authentication errors: HTTP 401 vs 403 troubleshooting",
+    "answerable": true
+  },
+  {
+    "question": "what header format should i use to pass my Bearer API key?",
+    "expected_title": "API authentication errors: HTTP 401 vs 403 troubleshooting",
+    "answerable": true
+  },
+  {
+    "question": "how long does the data export download link stay valid?",
+    "expected_title": "Exporting workspace tickets and knowledge base data",
+    "answerable": true
+  },
+  {
+    "question": "why are my 60 MB file attachments missing from the CSV export?",
+    "expected_title": "Exporting workspace tickets and knowledge base data",
+    "answerable": true
+  },
+  {
+    "question": "can i add our finance team email to get invoices without paying for an extra seat?",
+    "expected_title": "Adding a Billing Contact and switching payment methods",
+    "answerable": true
+  },
+  {
+    "question": "do you accept bank wire transfer or ACH for annual Enterprise contracts?",
+    "expected_title": "Adding a Billing Contact and switching payment methods",
+    "answerable": true
+  },
+  {
+    "question": "our Account Owner left the company without transferring ownership, what should we do?",
+    "expected_title": "Transferring Account Owner permissions to another Admin",
+    "answerable": true
+  },
+  {
+    "question": "can an Agent receive Account Owner transfer or do they need to be an Admin first?",
+    "expected_title": "Transferring Account Owner permissions to another Admin",
+    "answerable": true
+  },
+  {
+    "question": "whats the maximum limit parameter allowed on GET /tickets?",
+    "expected_title": "API pagination, filtering, and response size limits",
+    "answerable": true
+  },
+  {
+    "question": "does the tickets API use page numbers or cursor pagination?",
+    "expected_title": "API pagination, filtering, and response size limits",
+    "answerable": true
+  },
+  {
+    "question": "do you offer HIPAA BAA compliance agreements on the Pro plan?",
+    "expected_title": null,
+    "answerable": false
+  },
+  {
+    "question": "how do i set up a custom email domain for outbound ticket replies?",
+    "expected_title": null,
+    "answerable": false
+  },
+  {
+    "question": "what is your uptime SLA guarantee for Enterprise workspaces?",
+    "expected_title": null,
+    "answerable": false
+  },
+  {
+    "question": "can i integrate Jira to sync bugs with support tickets?",
+    "expected_title": null,
+    "answerable": false
+  },
+  {
+    "question": "how do i enable IP allowlisting to restrict agent logins by office IP?",
+    "expected_title": null,
+    "answerable": false
   }
 ]

@@ -1,4 +1,5 @@
 import json
+import sys
 import time
 from types import SimpleNamespace
 
@@ -19,6 +20,7 @@ SLEEP_SECONDS = 4.5  # Gemini API rate-limit (429) se bachne ke liye
 
 
 def main():
+    retrieval_only = "--retrieval-only" in sys.argv
     with open(GOLDEN_PATH, "r", encoding="utf-8") as f:
         dataset = json.load(f)
 
@@ -45,7 +47,9 @@ def main():
             titles = [r.get("title") for r in rows]
             top_dist = round(rows[0]["distance"], 3) if rows and rows[0].get("distance") is not None else None
 
-            if not rows:
+            if retrieval_only:
+                res = {"text": "[skipped]", "abstained": not bool(rows), "fallback": False}
+            elif not rows:
                 res = {"text": "I don't know.", "abstained": True, "fallback": False}
             else:
                 res = generate_answer(q, rows)
@@ -102,14 +106,18 @@ def main():
     finally:
         db.close()
 
+    header = "RETRIEVAL-ONLY EVAL SUMMARY" if retrieval_only else "FULL EVAL SUMMARY"
     print("\n" + "=" * 60)
-    print("BASELINE EVAL SUMMARY")
+    print(header)
     print("=" * 60)
     print(f"Retrieval Hit@1 (Answerable) : {hit_at_1}/{ans_total} ({hit_at_1/ans_total:.0%})")
     print(f"Retrieval Hit@5 (Answerable) : {hit_at_5}/{ans_total} ({hit_at_5/ans_total:.0%})")
-    print(f"Answered (non-abstain)       : {answered_correctly}/{ans_total} ({answered_correctly/ans_total:.0%})")
-    print(f"Unanswerable Abstain Rate    : {abstained_correctly}/{unans_total} ({abstained_correctly/unans_total:.0%})")
-    print(f"LLM Fallbacks (errors/429)   : {fallback_count}/{len(dataset)}")
+    if not retrieval_only:
+        print(f"Answered (non-abstain)       : {answered_correctly}/{ans_total} ({answered_correctly/ans_total:.0%})")
+        print(f"Unanswerable Abstain Rate    : {abstained_correctly}/{unans_total} ({abstained_correctly/unans_total:.0%})")
+        print(f"LLM Fallbacks (errors/429)   : {fallback_count}/{len(dataset)}")
+    else:
+        print(f"Unanswerable Blocked by DB   : {abstained_correctly}/{unans_total} ({abstained_correctly/unans_total:.0%})")
 
     if failures:
         print("\n" + "-" * 60)
