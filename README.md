@@ -69,7 +69,7 @@ The Gemini system prompt was revised to answer clearly when retrieved documentat
 
 ### 4. Mask personal contact details before embedding
 
-KB article titles and bodies are passed through `mask_pii()` before chunking, hashing, embedding, or storage. Email addresses and phone numbers are masked by default. An ingestion caller can explicitly allowlist public business contact email addresses with the `allowed_emails` argument; this keeps the decision explicit instead of preserving every email address in tenant content. Incoming questions are also masked before being sent to Gemini.
+KB article titles and bodies are passed through `mask_pii()` before chunking, hashing, embedding, and writing to `content_chunks`. Email addresses and phone numbers are masked by default. An ingestion caller can explicitly allowlist public business contact email addresses with the `allowed_emails` argument; this keeps the decision explicit instead of preserving every email address in tenant content. The original `kb_articles` source body is not modified. Incoming questions are also masked before being sent to Gemini. Existing stored chunks must be rebuilt once with `python -m scripts.reindex_kb`; the script supports `--tenant-id` and repeated `--allow-email` arguments.
 
 ## Evaluation and benchmarks
 
@@ -307,6 +307,7 @@ ai-helpdesk/
 ├── scripts/
 │   ├── eval_tenant_b_llm.py
 │   ├── evals_support_faqs.py
+│   ├── reindex_kb.py
 │   ├── seed_fastapi_tenant_b.py
 │   ├── smoke_test.py
 │   └── stress_test_b.py
