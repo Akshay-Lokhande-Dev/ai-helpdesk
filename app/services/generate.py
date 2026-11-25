@@ -158,5 +158,5 @@ def generate_answer(question: str, chunks: list) -> dict:
             "text": sources[0]["content"],
             "abstained": False,
             "fallback": True,
-            "source_indexes": [0],
+            "source_indexes": [source_row_indexes[0]],
         }
