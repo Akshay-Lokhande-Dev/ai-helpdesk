@@ -167,3 +167,42 @@ def test_generate_answer_marks_top_chunk_fallback_as_degraded(monkeypatch):
     assert result["abstained"] is False
     assert result["fallback"] is True
     assert result["source_indexes"] == [0]
+
+
+
+def test_generate_answer_abstains_when_model_cites_unknown_source(monkeypatch):
+    fake_models = FakeModels("The feature is supported. [S9]")
+    monkeypatch.setattr(
+        generate,
+        "_get_client",
+        lambda: SimpleNamespace(models=fake_models),
+    )
+
+    result = generate.generate_answer("Is the feature supported?", [_source()])
+
+    assert result["text"] == "I don't know."
+    assert result["abstained"] is True
+    assert result["source_indexes"] == []
+
+
+def test_generate_answer_maps_source_labels_to_original_rows(monkeypatch):
+    fake_models = FakeModels("Use the Forgot Password link. [S1]")
+    monkeypatch.setattr(
+        generate,
+        "_get_client",
+        lambda: SimpleNamespace(models=fake_models),
+    )
+
+    empty_row = {
+        "content_masked": "   ",
+        "title": "Empty source",
+        "parent_type": "kb_article",
+        "parent_id": str(uuid.uuid4()),
+        "chunk_index": 0,
+    }
+    result = generate.generate_answer(
+        "How do I reset my password?",
+        [empty_row, _source()],
+    )
+
+    assert result["source_indexes"] == [1]
