@@ -127,15 +127,14 @@ def generate_answer(question: str, chunks: list) -> dict:
             }
 
         # Convert source labels into zero-based indexes for the API layer.
+        cited_numbers = {
+            int(match) for match in re.findall(r"\[S(\d+)\]", answer)
+        }
         source_indexes = sorted(
-            {
-                int(match) - 1
-                for match in re.findall(r"\[S(\d+)\]", answer)
-                if 1 <= int(match) <= len(sources)
-            }
+            number - 1 for number in cited_numbers if 1 <= number <= len(sources)
         )
-        if not source_indexes:
-            logger.warning("Gemini returned an answer without a valid source citation; abstaining.")
+        if not source_indexes or any(number < 1 or number > len(sources) for number in cited_numbers):
+            logger.warning("Gemini returned missing or invalid source citations; abstaining.")
             return {
                 "text": "I don't know.",
                 "abstained": True,
