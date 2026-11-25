@@ -156,7 +156,7 @@ def retrieve(
         "qvec": "[" + ",".join(map(str, query_vector)) + "]",
         "q_or": _or_query(question),
         "pool": max(pool, limit),
-        "fetch": limit * 4,
+        "fetch": max(pool, limit) * 2,
         "max_distance": max_distance,
         "keyword_distance_allowance": keyword_distance_allowance,
         "rrf_k": RRF_K,
