@@ -68,7 +68,7 @@ def generate_answer(question: str, chunks: list) -> dict:
         return {"text": "I don't know.", "abstained": True, "fallback": False}
 
     sources = []
-    for index, chunk in enumerate(chunks, start=1):
+    for chunk in chunks:
         content = (_chunk_value(chunk, "content_masked", "") or "").strip()
         if not content:
             continue
@@ -130,7 +130,7 @@ def generate_answer(question: str, chunks: list) -> dict:
         source_indexes = sorted(
             {
                 int(match) - 1
-                for match in re.findall(r"\\[S(\\d+)\\]", answer)
+                for match in re.findall(r"\[S(\d+)\]", answer)
                 if 1 <= int(match) <= len(sources)
             }
         )
