@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 import app.services.generate as generate
 import app.services.ingest as ingest
-from app.services.chunking import mask_pii
+from app.services.chunking import chunk_text, mask_pii
 from app.services.retrieval import HYBRID_SQL, _or_query, retrieve
 
 
@@ -206,3 +206,23 @@ def test_generate_answer_maps_source_labels_to_original_rows(monkeypatch):
     )
 
     assert result["source_indexes"] == [1]
+
+
+
+def test_chunk_text_prefers_sentence_boundaries_and_preserves_words():
+    source = (
+        "One sentence ends here. Two sentence ends here. "
+        "Three sentence ends here. Four sentence ends here."
+    )
+
+    chunks = chunk_text(source, chunk_size=55, overlap=8)
+
+    assert len(chunks) >= 2
+    assert chunks[0].endswith(".")
+    combined = " ".join(chunks)
+    for word in source.split():
+        assert word in combined
+
+
+def test_chunk_text_returns_empty_list_for_blank_content():
+    assert chunk_text("   ") == []
