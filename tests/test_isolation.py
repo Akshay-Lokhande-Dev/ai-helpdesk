@@ -56,7 +56,12 @@ def test_tenant_b_admin_retrieves_only_tenant_b_rows(db):
     )
 
     returned_rows = wifi_rows + refund_rows
-    assert all(str(row["tenant_id"]) == TENANT_B_ID for row in returned_rows)
+    assert all(
+        str(row["tenant_id"]) == TENANT_B_ID for row in returned_rows
+    ), [
+        (row.get("tenant_id"), row.get("title"), row.get("parent_id"))
+        for row in returned_rows
+    ]
 
     # Also assert that no known Tenant A KB article ID was returned.
     returned_article_ids = {
