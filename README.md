@@ -83,7 +83,7 @@ An HNSW index (`vector_cosine_ops`, `m=16`, `ef_construction=64`) was added via 
 
 | Metric (2,176 Chunks) | Without Index (`Seq Scan`) | With HNSW Index (`Index Scan`) | Result |
 | :--- | :--- | :--- | :--- |
-| **Query Plan** | `Seq Scan` + `top-N heapsort` | `Index Scan using ix_content_chunks_embedding_hnsw` | O(N) → O(log N) |
+| **Query Plan** | `Seq Scan` + `top-N heapsort` | `Index Scan using ix_content_chunks_embedding_hnsw` | Approximate nearest-neighbor index lookup |
 | **Pure SQL Execution Time** | ~9.04 ms | **1.45 ms** | **~6.2x faster** |
 | **Recall@5 (100-query eval)** | 43.0% | **43.0%** | **0% recall loss** |
 | **Hit@1 (100-query eval)** | 27.0% | **27.0%** | Consistent |
@@ -101,6 +101,8 @@ An HNSW index (`vector_cosine_ops`, `m=16`, `ef_construction=64`) was added via 
 | Retrieval Hit@1 (answerable) | 41/42 (98%) |
 | Retrieval Recall@5 (answerable) | 42/42 (100%) |
 | Unanswerable / abstention accuracy | 100% |
+
+These are retrieval and abstention measurements, not a factual correctness score for generated answers. The current full evaluation also requires valid source citations, but it still does not independently judge whether every generated claim is factually correct.
 
 The checked-in `golden_set.json` contains 55 queries. Run the evaluation against a database seeded with the matching Tenant A KB content:
 
