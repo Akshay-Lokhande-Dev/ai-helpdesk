@@ -68,11 +68,13 @@ def generate_answer(question: str, chunks: list) -> dict:
         return {"text": "I don't know.", "abstained": True, "fallback": False}
 
     sources = []
-    for chunk in chunks:
+    source_row_indexes = []
+    for row_index, chunk in enumerate(chunks):
         content = (_chunk_value(chunk, "content_masked", "") or "").strip()
         if not content:
             continue
 
+        source_row_indexes.append(row_index)
         sources.append(
             {
                 "label": f"S{len(sources) + 1}",
@@ -94,7 +96,7 @@ def generate_answer(question: str, chunks: list) -> dict:
             "text": sources[0]["content"],
             "abstained": False,
             "fallback": True,
-            "source_indexes": [0],
+            "source_indexes": [source_row_indexes[0]],
         }
 
     # JSON encoding keeps source text structurally separated from the question.
@@ -131,7 +133,9 @@ def generate_answer(question: str, chunks: list) -> dict:
             int(match) for match in re.findall(r"\[S(\d+)\]", answer)
         }
         source_indexes = sorted(
-            number - 1 for number in cited_numbers if 1 <= number <= len(sources)
+            source_row_indexes[number - 1]
+            for number in cited_numbers
+            if 1 <= number <= len(sources)
         )
         if not source_indexes or any(number < 1 or number > len(sources) for number in cited_numbers):
             logger.warning("Gemini returned missing or invalid source citations; abstaining.")
