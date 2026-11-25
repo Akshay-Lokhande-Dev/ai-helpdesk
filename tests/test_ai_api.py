@@ -110,3 +110,46 @@ def test_ai_ask_cross_tenant_isolation_over_http(monkeypatch):
 
     assert body["answer"] == "I don't know."
     assert body["citations"] == []
+
+def test_ai_ask_returns_only_sources_cited_by_generation(monkeypatch):
+    _override_user(TENANT_A_ID, role="end_user")
+
+    rows = [
+        {
+            "title": "Uncited article",
+            "parent_type": "kb_article",
+            "parent_id": "11111111-1111-4111-8111-111111111111",
+            "chunk_index": 0,
+            "distance": 0.2,
+            "content_masked": "Unrelated source text.",
+        },
+        {
+            "title": "Cited article",
+            "parent_type": "kb_article",
+            "parent_id": "22222222-2222-4222-8222-222222222222",
+            "chunk_index": 1,
+            "distance": 0.4,
+            "content_masked": "Relevant source text.",
+        },
+    ]
+
+    monkeypatch.setattr(ai_router, "retrieve", lambda *args, **kwargs: rows)
+    monkeypatch.setattr(
+        ai_router,
+        "generate_answer",
+        lambda question, retrieved: {
+            "text": "Grounded answer. [S2]",
+            "abstained": False,
+            "fallback": False,
+            "source_indexes": [1],
+        },
+    )
+
+    response = client.post("/ai/ask", json={"question": "Tell me about this issue"})
+    assert response.status_code == 200
+    body = response.json()
+
+    assert body["answer"] == "Grounded answer. [S2]"
+    assert len(body["citations"]) == 1
+    assert body["citations"][0]["title"] == "Cited article"
+    assert body["similarity"] == 0.6
