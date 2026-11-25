@@ -66,6 +66,17 @@ def _is_abstention(answer: str) -> bool:
     return normalized.startswith(abstention_prefixes)
 
 
+
+
+def _fallback_result(sources: list[dict], source_row_indexes: list[int]) -> dict:
+    return {
+        "text": sources[0]["content"],
+        "abstained": False,
+        "fallback": True,
+        "source_indexes": [source_row_indexes[0]],
+    }
+
+
 def generate_answer(question: str, chunks: list) -> dict:
     if not chunks:
         return {"text": "I don't know.", "abstained": True, "fallback": False}
@@ -92,15 +103,15 @@ def generate_answer(question: str, chunks: list) -> dict:
     if not sources:
         return {"text": "I don't know.", "abstained": True, "fallback": False}
 
-    client = _get_client()
+    try:
+        client = _get_client()
+    except Exception:
+        logger.exception("Gemini client initialization failed; using degraded retrieval fallback.")
+        return _fallback_result(sources, source_row_indexes)
+
     if client is None:
-        logger.warning("GEMINI_API_KEY not set; returning the top retrieved chunk as degraded fallback.")
-        return {
-            "text": sources[0]["content"],
-            "abstained": False,
-            "fallback": True,
-            "source_indexes": [source_row_indexes[0]],
-        }
+        logger.warning("GEMINI_API_KEY not set; using degraded retrieval fallback.")
+        return _fallback_result(sources, source_row_indexes)
 
     # JSON encoding keeps source text structurally separated from the question.
     # The system instruction still treats all supplied values as untrusted data.
@@ -157,9 +168,4 @@ def generate_answer(question: str, chunks: list) -> dict:
         }
     except Exception:
         logger.exception("Gemini generation failed; returning the top retrieved chunk as degraded fallback.")
-        return {
-            "text": sources[0]["content"],
-            "abstained": False,
-            "fallback": True,
-            "source_indexes": [source_row_indexes[0]],
-        }
+        return _fallback_result(sources, source_row_indexes)
