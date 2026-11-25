@@ -84,6 +84,7 @@ HYBRID_SQL = text(
         -- candidates that vector top-pool retrieval did not return.
         SELECT
             c.id,
+            c.tenant_id,
             c.content_masked,
             c.parent_type,
             c.parent_id,
@@ -110,6 +111,7 @@ HYBRID_SQL = text(
     )
     SELECT
         candidate_rows.id,
+        candidate_rows.tenant_id,
         candidate_rows.content_masked,
         candidate_rows.parent_type,
         candidate_rows.parent_id,
