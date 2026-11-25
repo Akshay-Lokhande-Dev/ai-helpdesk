@@ -226,3 +226,34 @@ def test_chunk_text_prefers_sentence_boundaries_and_preserves_words():
 
 def test_chunk_text_returns_empty_list_for_blank_content():
     assert chunk_text("   ") == []
+
+
+
+def test_retrieve_fetches_full_union_before_parent_deduplication(monkeypatch):
+    class FakeMappings:
+        def all(self):
+            return []
+
+    class FakeResult:
+        def mappings(self):
+            return FakeMappings()
+
+    class FakeDb:
+        params = None
+
+        def execute(self, statement, params):
+            self.params = params
+            return FakeResult()
+
+    monkeypatch.setattr(
+        "app.services.retrieval.embed_texts",
+        lambda texts: [[0.0] * 384 for _ in texts],
+    )
+
+    db = FakeDb()
+    user = SimpleNamespace(tenant_id=uuid.uuid4(), role="end_user")
+    result = retrieve(db, user, question="reset password", limit=5, pool=20)
+
+    assert result == []
+    assert db.params["pool"] == 20
+    assert db.params["fetch"] == 40
