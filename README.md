@@ -229,6 +229,9 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 
+# Optional dependency for the Hugging Face FAQ dataset evaluation script
+pip install -r requirements-eval.txt
+
 cp .env.example .env
 # Edit .env and add the values listed below.
 
@@ -307,12 +310,14 @@ ai-helpdesk/
 │   └── stress_test_b.py
 ├── tests/
 │   ├── test_ai_api.py
-│   └── test_isolation.py
+│   ├── test_isolation.py
+│   └── test_rag_services.py
 ├── eval_golden.py
 ├── golden_set.json
 ├── Dockerfile
 ├── docker-compose.yml
 ├── requirements.txt
+├── requirements-eval.txt
 ├── .env.example
 ├── alembic.ini
 └── ERRORS.md
@@ -325,6 +330,7 @@ ai-helpdesk/
 - No frontend UI.
 - No production deployment, production monitoring, or observability setup.
 - `GET /users/test/{user_id}` is now admin-protected and tenant-scoped, but it remains a diagnostic endpoint that should be removed before production deployment.
+- The AI endpoint uses KB retrieval only; it cannot fetch live order, shipment, billing, or other external transactional status without a corresponding integration. It can explain documented procedures but must not claim to have checked a live record.
 - Ticket numbers are generated as random `T-XXXXXXXX` identifiers.
 
 ## Author
