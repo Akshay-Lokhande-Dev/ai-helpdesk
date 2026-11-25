@@ -1,0 +1,4 @@
+-r requirements.txt
+
+# Optional dependency used by scripts/evals_support_faqs.py.
+datasets>=3.0,<5.0
