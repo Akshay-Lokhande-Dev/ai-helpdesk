@@ -170,9 +170,10 @@ The checked-in tests cover:
 
 - `tests/test_isolation.py`: tenant-scoped retrieval, cross-tenant isolation for Tenant B admins, tenant separation for FastAPI documentation, and out-of-domain threshold blocking.
 - `tests/test_ai_api.py`: authentication enforcement, mocked AI responses, retrieval-level abstention, LLM-level abstention, HTTP-level tenant isolation, and citation filtering.
-- `tests/test_rag_services.py`: PII masking, sanitization before embedding/storage, FTS/vector candidate-union regression coverage, blank-query handling, source-labelled prompts, citation validation, and degraded fallback behaviour.
+- `tests/test_rag_services.py`: PII masking, sanitization before embedding/storage, FTS/vector candidate-union regression coverage, blank-query handling, source-labelled prompts, citation validation, chunk boundaries, and degraded fallback behaviour.
+- `tests/test_gemini_integration.py`: an opt-in live Gemini API test. It is skipped unless `RUN_GEMINI_INTEGRATION=1` and `GEMINI_API_KEY` are set.
 
-The earlier duplicate Tenant B isolation test has been renamed so it no longer shadows the first test definition. The API and database-isolation tests still require a configured PostgreSQL database with the expected tenant and KB seed data. The service tests use fakes for the database and Gemini client. The repository does not currently have a self-provisioning CI test workflow.
+The earlier duplicate Tenant B isolation test has been renamed so it no longer shadows the first test definition. The API and database-isolation tests still require a configured PostgreSQL database with the expected tenant and KB seed data. The service tests use fakes for the database and Gemini client. The live Gemini test makes an external API call and may consume API quota. The repository does not currently have a self-provisioning CI test workflow.
 
 ## API endpoints
 
@@ -273,6 +274,12 @@ uvicorn app.main:app --reload
 # Run tests
 pytest -v
 
+# Opt in to a real Gemini API request (uses your GEMINI_API_KEY)
+RUN_GEMINI_INTEGRATION=1 pytest -v tests/test_gemini_integration.py
+
+# Rebuild existing KB chunks with current sanitization and chunking
+python -m scripts.reindex_kb --tenant-id <tenant-uuid>
+
 # Run the golden-set evaluation
 python eval_golden.py
 ```
@@ -313,6 +320,7 @@ ai-helpdesk/
 │   └── stress_test_b.py
 ├── tests/
 │   ├── test_ai_api.py
+│   ├── test_gemini_integration.py
 │   ├── test_isolation.py
 │   └── test_rag_services.py
 ├── eval_golden.py
