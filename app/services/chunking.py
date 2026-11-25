@@ -83,7 +83,8 @@ def chunk_text(text: str, chunk_size: int = 800, overlap: int = 100) -> list[str
         if end >= len(text):
             break
 
-        next_start = max(start + 1, end - overlap)
+        effective_overlap = min(overlap, max(0, (end - start) // 2))
+        next_start = max(start + 1, end - effective_overlap)
         if next_start < end:
             # Move the overlap start forward to a whitespace boundary rather
             # than beginning in the middle of a word.
