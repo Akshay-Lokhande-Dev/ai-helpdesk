@@ -72,6 +72,23 @@ The Gemini system prompt was revised to answer clearly when retrieved documentat
 
 The following are reported local results for the datasets and configurations described. Retrieval latency depends on the machine, database state, and embedding model warm-up; it should not be interpreted as a production SLA.
 
+## Vector Indexing & Scale Benchmark (pgvector HNSW)
+
+To validate retrieval performance at scale, 1,000 deduplicated customer support articles (`bitext/Bitext-customer-support-llm-chatbot-training-dataset`) were ingested into Tenant B, bringing the `content_chunks` table to **2,176 chunks** (2,144 in Tenant B).
+
+An HNSW index (`vector_cosine_ops`, `m=16`, `ef_construction=64`) was added via Alembic migration and verified using PostgreSQL `EXPLAIN ANALYZE` and a deterministic 100-query benchmark:
+
+| Metric (2,176 Chunks) | Without Index (`Seq Scan`) | With HNSW Index (`Index Scan`) | Result |
+| :--- | :--- | :--- | :--- |
+| **Query Plan** | `Seq Scan` + `top-N heapsort` | `Index Scan using ix_content_chunks_embedding_hnsw` | O(N) → O(log N) |
+| **Pure SQL Execution Time** | ~9.04 ms | **1.45 ms** | **~6.2x faster** |
+| **Recall@5 (100-query eval)** | 43.0% | **43.0%** | **0% recall loss** |
+| **Hit@1 (100-query eval)** | 27.0% | **27.0%** | Consistent |
+
+### Key Engineering Findings
+* **Database vs. CPU Bottleneck:** End-to-end Python retrieval latency (~25–42 ms) is dominated (~95%) by local CPU query embedding (`all-MiniLM-L6-v2`), while PostgreSQL vector search takes ~1.45 ms.
+* **Multi-Tenant Post-Filtering:** `EXPLAIN ANALYZE` confirmed that `pgvector` traverses the HNSW graph first and post-filters on `tenant_id` (`Rows Removed by Filter: 6`), highlighting when `hnsw.iterative_scan` becomes necessary for smaller tenants at larger scale.
+
 ### Tenant A — Golden Set
 
 **Dataset:** 21 KB articles and 55 questions: 42 answerable and 13 unanswerable.
