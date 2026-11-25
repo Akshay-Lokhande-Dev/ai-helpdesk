@@ -333,6 +333,7 @@ ai-helpdesk/
 ├── requirements-eval.txt
 ├── .env.example
 ├── alembic.ini
+├── pytest.ini
 └── ERRORS.md
 ```
 
