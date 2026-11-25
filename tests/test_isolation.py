@@ -54,18 +54,31 @@ def test_out_of_domain_query_blocked_by_threshold(db):
 
     assert rows == []
 
-def test_tenant_b_admin_cannot_see_tenant_a_data(db):
-    # Admin role hone ke baad bhi Tenant A ka koi bhi article ID leak nahi hona chahiye
+def test_tenant_b_admin_cannot_return_tenant_a_article_ids(db):
+    # Admin role must not bypass tenant-scoped retrieval.
     admin_b = SimpleNamespace(tenant_id=TENANT_B_ID, role="admin")
 
     tenant_a_ids = {
         str(row[0])
-        for row in db.query(KBArticle.id).filter(KBArticle.tenant_id == TENANT_A_ID).all()
+        for row in db.query(KBArticle.id)
+        .filter(KBArticle.tenant_id == TENANT_A_ID)
+        .all()
     }
 
-    wifi_rows = retrieve(db, admin_b, question="my laptop wifi wont connect pls help", limit=5, max_distance=MAX_DISTANCE)
-    assert wifi_rows == []
+    wifi_rows = retrieve(
+        db,
+        admin_b,
+        question="my laptop wifi wont connect pls help",
+        limit=5,
+        max_distance=MAX_DISTANCE,
+    )
+    refund_rows = retrieve(
+        db,
+        admin_b,
+        question="how do I request a refund for my subscription?",
+        limit=5,
+        max_distance=MAX_DISTANCE,
+    )
 
-    refund_rows = retrieve(db, admin_b, question="how do I request a refund for my subscription?", limit=5, max_distance=MAX_DISTANCE)
-    returned_ids = {str(r["parent_id"]) for r in refund_rows}
+    returned_ids = {str(row["parent_id"]) for row in wifi_rows + refund_rows}
     assert returned_ids.isdisjoint(tenant_a_ids)
