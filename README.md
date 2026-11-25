@@ -23,30 +23,33 @@ A multi-tenant IT service management (ITSM) backend built with Python, FastAPI, 
 1. An authenticated user sends a question to `POST /ai/ask`.
 2. The question is embedded using `all-MiniLM-L6-v2`.
 3. Retrieval is restricted in SQL to the authenticated user's tenant and the knowledge visibility allowed for their role.
-4. The retrieval query runs vector similarity search with pgvector and keyword search using PostgreSQL FTS.
-5. The two ranked result sets are combined using Reciprocal Rank Fusion (RRF).
-6. A hybrid distance gate filters weak matches. FTS matches can be included only when their vector distance is within the configured additional allowance.
-7. Retrieval returns up to five chunks, with a maximum of two chunks per parent article.
-8. Retrieved context and the question are sent to Gemini with instructions to answer only from the supplied context.
-9. The API returns the answer, citation metadata, similarity where available, and a `degraded` flag.
+4. pgvector vector search and PostgreSQL full-text search (FTS) independently produce candidate pools.
+5. The candidate IDs are unioned, so a result found by FTS can enter the candidate set even when it is outside the vector top-pool.
+6. Reciprocal Rank Fusion (RRF) combines the vector and keyword ranks.
+7. A hybrid distance gate filters weak matches. A keyword candidate is admitted only when its vector distance is within `max_distance + 0.15`; vector candidates must be within `max_distance`.
+8. Retrieval returns up to five chunks, with a maximum of two chunks per parent article.
+9. Retrieved sources are sent to Gemini as source-labelled JSON. The model is instructed to answer only from those sources and cite them with labels such as `[S1]`.
+10. The API returns the answer, only the source citations referenced by the answer, a nearest-source cosine similarity value where available, and a `degraded` flag.
 
 ### Retrieval guardrails
 
-- **SQL-level tenant isolation:** the retrieval query filters content chunks by the authenticated user's tenant before ranking. A user from another tenant cannot retrieve another tenant's KB content, including when the user has an admin role.
-- **Role-aware KB visibility:** end users retrieve published KB articles; agents and admins can also retrieve internal KB content.
-- **Hybrid distance gate:** vector distance is checked against `max_distance`. An FTS match may be rescued only when its distance is no greater than `max_distance + 0.15`.
+- **SQL-level tenant isolation:** vector search, FTS, and candidate materialization each apply the authenticated user's tenant filter. A user from another tenant cannot retrieve another tenant's KB content, including when the user has an admin role.
+- **Role-aware KB visibility:** end users retrieve published KB articles whose chunk visibility is public; agents and admins can also retrieve internal KB content.
+- **Independent candidate pools:** vector and FTS results are unioned before scoring, rather than requiring every FTS result to already be present in the vector top-pool.
+- **Hybrid distance gate:** vector candidates must be within `max_distance`; FTS candidates can be rescued only when their vector distance is no greater than `max_distance + 0.15`.
 - **Parent-level diversity:** no more than two chunks from the same parent article are returned.
-- **Abstention:** if retrieval returns no relevant context, the API responds with `I don't know.` without invoking the LLM. The Gemini system instruction also requires `I don't know.` when the supplied context does not contain the answer.
+- **Grounded citations:** Gemini is instructed to cite source labels. Answers without a valid source label, or with an unknown source label, are treated as abstentions. The API returns only the cited source rows.
+- **Abstention:** if retrieval returns no relevant context, the API responds with `I don't know.` without invoking the LLM. Gemini is also instructed to abstain when the sources do not contain the answer.
 
-Cross-tenant requests are blocked by tenant-scoped SQL retrieval; the LLM is not used to enforce tenant boundaries. The abstention response is the user-facing behaviour when no permitted context is available.
+Cross-tenant requests are blocked by tenant-scoped SQL retrieval; the LLM is not used to enforce tenant boundaries. The cosine similarity value is a vector-distance-derived score, not a calibrated probability that the answer is correct.
 
 ### Degraded fallback
 
-If `GEMINI_API_KEY` is missing or Gemini generation fails, the generation service returns the top retrieved chunk as a fallback. The API sets `degraded: true` to indicate that the response did not come from normal Gemini generation. This fallback is not equivalent to a generated, context-synthesized answer.
+If `GEMINI_API_KEY` is missing or Gemini generation fails, the generation service returns the first non-empty retrieved chunk as a fallback and marks the response `degraded: true`. The API cites that fallback chunk. This fallback is not equivalent to a generated, context-synthesized answer.
 
 ### Citation response
 
-The AI response includes citation metadata for the retrieved source, including `parent_type`, `parent_id`, `title`, and `chunk_index`. It also includes a similarity value where available and the `degraded` status.
+The AI response includes citation metadata for the source rows referenced by the generated answer: `parent_type`, `parent_id`, `title`, and `chunk_index`. It also includes the nearest cited source's cosine similarity value where available and the `degraded` status.
 
 ## Evaluation-driven engineering
 
@@ -64,13 +67,13 @@ FTS can find exact technical terms even when semantic similarity is weaker, but 
 
 The Gemini system prompt was revised to answer clearly when retrieved documentation explicitly says a feature is unsupported or a user is ineligible. Examples include SMS 2FA and auto-renewal refunds. This avoids treating an explicit negative answer as a reason to abstain.
 
-### 4. Preserve official contact details in curated KB content
+### 4. Mask personal contact details before embedding
 
-`mask_pii()` was removed from curated KB article ingestion so legitimate support and billing email addresses remain searchable and available in answers. PII masking remains applied to incoming user questions before they are sent to Gemini.
+KB article titles and bodies are passed through `mask_pii()` before chunking, hashing, embedding, or storage. Email addresses and phone numbers are masked by default. An ingestion caller can explicitly allowlist public business contact email addresses with the `allowed_emails` argument; this keeps the decision explicit instead of preserving every email address in tenant content. Incoming questions are also masked before being sent to Gemini.
 
 ## Evaluation and benchmarks
 
-The following are reported local results for the datasets and configurations described. Retrieval latency depends on the machine, database state, and embedding model warm-up; it should not be interpreted as a production SLA.
+The figures below are historical local baseline results from the previous implementation. The retrieval and generation changes on this branch have not yet been benchmarked against the same seeded database and datasets. Re-run the evaluations before presenting these numbers as results for this branch. Retrieval latency also depends on the machine, database state, and embedding-model warm-up; it is not a production SLA.
 
 ## Vector Indexing & Scale Benchmark (pgvector HNSW)
 
@@ -163,12 +166,11 @@ pytest -v
 
 The checked-in tests cover:
 
-- `tests/test_isolation.py`: retrieval of a tenant's own content, cross-tenant isolation for Tenant B admins, tenant separation for FastAPI documentation, and out-of-domain threshold blocking.
-- `tests/test_ai_api.py`: authentication enforcement for `/ai/ask`, citation-bearing responses (with mocked generation), retrieval-level abstention, LLM-level abstention, and HTTP-level tenant isolation.
+- `tests/test_isolation.py`: tenant-scoped retrieval, cross-tenant isolation for Tenant B admins, tenant separation for FastAPI documentation, and out-of-domain threshold blocking.
+- `tests/test_ai_api.py`: authentication enforcement, mocked AI responses, retrieval-level abstention, LLM-level abstention, HTTP-level tenant isolation, and citation filtering.
+- `tests/test_rag_services.py`: PII masking, sanitization before embedding/storage, FTS/vector candidate-union regression coverage, blank-query handling, source-labelled prompts, citation validation, and degraded fallback behaviour.
 
-**Test-count note:** the current checked-in `tests/test_isolation.py` defines `test_tenant_b_admin_cannot_see_tenant_a_data` twice. The later definition shadows the earlier one during Python module import. Together, the two test files therefore contain eight distinct collected test functions as currently committed. A reported 9/9 run may refer to a different local revision; rename or restore the additional test before describing the current repository state as 9/9.
-
-Tests use a configured database with the expected tenant and KB seed data. They are not currently set up as isolated, self-provisioning CI tests.
+The earlier duplicate Tenant B isolation test has been renamed so it no longer shadows the first test definition. The API and database-isolation tests still require a configured PostgreSQL database with the expected tenant and KB seed data. The service tests use fakes for the database and Gemini client. The repository does not currently have a self-provisioning CI test workflow.
 
 ## API endpoints
 
@@ -179,7 +181,7 @@ Tests use a configured database with the expected tenant and KB seed data. They 
 | POST | `/auth/login` | Authenticate using tenant slug, email, and password |
 | GET | `/auth/me` | Get the current authenticated user |
 | POST | `/users` | Create a user (admin only) |
-| GET | `/users/test/{user_id}` | Development/test user lookup; currently unauthenticated |
+| GET | `/users/test/{user_id}` | Admin-only diagnostic user lookup, restricted to the admin's tenant |
 | GET | `/tickets` | List up to 50 tickets visible to the current user |
 | POST | `/tickets` | Create a ticket for the current user |
 | GET | `/tickets/{ticket_number}` | Retrieve a visible ticket by ticket number |
@@ -249,7 +251,7 @@ GEMINI_API_KEY=your_gemini_api_key
 GEMINI_MODEL=gemini-3.5-flash-lite
 ```
 
-`SECRET_KEY` is needed for JWT signing. `GEMINI_API_KEY` enables Gemini generation; without it, the service uses the degraded top-chunk fallback described above. Do not commit `.env` or real credentials.
+`SECRET_KEY` is required for JWT signing. `GEMINI_API_KEY` enables Gemini generation; without it, the service uses the degraded top-chunk fallback described above. `GEMINI_MODEL` selects the model and defaults to `gemini-3.5-flash-lite`. Do not commit `.env` or real credentials.
 
 ### Useful commands
 
@@ -322,7 +324,7 @@ ai-helpdesk/
 - No public KB CRUD or document-upload API; KB ingestion is currently implemented as an internal service and scripts.
 - No frontend UI.
 - No production deployment, production monitoring, or observability setup.
-- `GET /users/test/{user_id}` is currently unauthenticated and should be removed or protected before production use.
+- `GET /users/test/{user_id}` is now admin-protected and tenant-scoped, but it remains a diagnostic endpoint that should be removed before production deployment.
 - Ticket numbers are generated as random `T-XXXXXXXX` identifiers.
 
 ## Author
