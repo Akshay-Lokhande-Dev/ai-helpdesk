@@ -31,7 +31,7 @@ def main():
     unans_total = 0
     hit_at_1 = 0
     hit_at_5 = 0
-    answered_correctly = 0      # answerable=True aur model ne abstain nahi kiya
+    answered_with_citations = 0  # non-degraded Gemini answer with valid source labels
     abstained_correctly = 0     # answerable=False aur model ne "I don't know." bola
     fallback_count = 0          # Gemini fail/rate-limit hua
 
@@ -67,10 +67,24 @@ def main():
                 if is_hit5:
                     hit_at_5 += 1
 
-                if not res["abstained"] and not res["fallback"]:
-                    answered_correctly += 1
+                if (
+                    not retrieval_only
+                    and not res["abstained"]
+                    and not res["fallback"]
+                    and bool(res.get("source_indexes"))
+                ):
+                    answered_with_citations += 1
 
-                status = "PASS" if (is_hit5 and not res["abstained"] and not res["fallback"]) else "FAIL"
+                if retrieval_only:
+                    passed = is_hit5
+                else:
+                    passed = (
+                        is_hit5
+                        and not res["abstained"]
+                        and not res["fallback"]
+                        and bool(res.get("source_indexes"))
+                    )
+                status = "PASS" if passed else "FAIL"
                 if status == "FAIL":
                     failures.append({
                         "idx": idx,
@@ -113,7 +127,7 @@ def main():
     print(f"Retrieval Hit@1 (Answerable) : {hit_at_1}/{ans_total} ({hit_at_1/ans_total:.0%})")
     print(f"Retrieval Hit@5 (Answerable) : {hit_at_5}/{ans_total} ({hit_at_5/ans_total:.0%})")
     if not retrieval_only:
-        print(f"Answered (non-abstain)       : {answered_correctly}/{ans_total} ({answered_correctly/ans_total:.0%})")
+        print(f"Gemini answers with citations: {answered_with_citations}/{ans_total} ({answered_with_citations/ans_total:.0%})")
         print(f"Unanswerable Abstain Rate    : {abstained_correctly}/{unans_total} ({abstained_correctly/unans_total:.0%})")
         print(f"LLM Fallbacks (errors/429)   : {fallback_count}/{len(dataset)}")
     else:
