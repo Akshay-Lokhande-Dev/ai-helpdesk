@@ -75,7 +75,7 @@ def generate_answer(question: str, chunks: list) -> dict:
 
         sources.append(
             {
-                "label": f"S{index}",
+                "label": f"S{len(sources) + 1}",
                 "title": _chunk_value(chunk, "title") or "Knowledge-base article",
                 "parent_type": _chunk_value(chunk, "parent_type"),
                 "parent_id": str(_chunk_value(chunk, "parent_id", "")),
@@ -90,7 +90,12 @@ def generate_answer(question: str, chunks: list) -> dict:
     client = _get_client()
     if client is None:
         logger.warning("GEMINI_API_KEY not set; returning the top retrieved chunk as degraded fallback.")
-        return {"text": sources[0]["content"], "abstained": False, "fallback": True}
+        return {
+            "text": sources[0]["content"],
+            "abstained": False,
+            "fallback": True,
+            "source_indexes": [0],
+        }
 
     # JSON encoding keeps source text structurally separated from the question.
     # The system instruction still treats all supplied values as untrusted data.
@@ -114,9 +119,41 @@ def generate_answer(question: str, chunks: list) -> dict:
         )
         answer = (response.text or "").strip()
         if not answer or _is_abstention(answer):
-            return {"text": "I don't know.", "abstained": True, "fallback": False}
+            return {
+                "text": "I don't know.",
+                "abstained": True,
+                "fallback": False,
+                "source_indexes": [],
+            }
 
-        return {"text": answer, "abstained": False, "fallback": False}
+        # Convert source labels into zero-based indexes for the API layer.
+        source_indexes = sorted(
+            {
+                int(match) - 1
+                for match in re.findall(r"\\[S(\\d+)\\]", answer)
+                if 1 <= int(match) <= len(sources)
+            }
+        )
+        if not source_indexes:
+            logger.warning("Gemini returned an answer without a valid source citation; abstaining.")
+            return {
+                "text": "I don't know.",
+                "abstained": True,
+                "fallback": False,
+                "source_indexes": [],
+            }
+
+        return {
+            "text": answer,
+            "abstained": False,
+            "fallback": False,
+            "source_indexes": source_indexes,
+        }
     except Exception:
         logger.exception("Gemini generation failed; returning the top retrieved chunk as degraded fallback.")
-        return {"text": sources[0]["content"], "abstained": False, "fallback": True}
+        return {
+            "text": sources[0]["content"],
+            "abstained": False,
+            "fallback": True,
+            "source_indexes": [0],
+        }
