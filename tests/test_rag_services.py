@@ -144,6 +144,46 @@ def test_generate_answer_uses_json_sources_and_returns_only_valid_citations(monk
     assert result["source_indexes"] == [0]
 
 
+def test_generate_answer_accepts_grouped_source_citations(monkeypatch):
+    fake_models = FakeModels(
+        "Create a second API key, deploy it, and then revoke the old key. [S1, S2]"
+    )
+    monkeypatch.setattr(
+        generate,
+        "_get_client",
+        lambda: SimpleNamespace(models=fake_models),
+    )
+
+    result = generate.generate_answer(
+        "How do I rotate API keys without downtime?",
+        [_source(), _source()],
+    )
+
+    assert result["abstained"] is False
+    assert result["fallback"] is False
+    assert result["source_indexes"] == [0, 1]
+
+
+def test_generate_answer_rejects_unknown_source_in_grouped_citation(monkeypatch):
+    fake_models = FakeModels(
+        "Create a second API key and deploy it. [S1, S9]"
+    )
+    monkeypatch.setattr(
+        generate,
+        "_get_client",
+        lambda: SimpleNamespace(models=fake_models),
+    )
+
+    result = generate.generate_answer(
+        "How do I rotate API keys without downtime?",
+        [_source(), _source()],
+    )
+
+    assert result["text"] == "I don't know."
+    assert result["abstained"] is True
+    assert result["source_indexes"] == []
+
+
 def test_generate_answer_abstains_when_model_does_not_cite_a_source(monkeypatch):
     fake_models = FakeModels("Use the Forgot Password link to reset your password.")
     monkeypatch.setattr(
