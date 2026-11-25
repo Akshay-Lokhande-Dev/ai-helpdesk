@@ -23,7 +23,7 @@ Evidence and safety rules:
 - If the sources answer only part of the question, answer that part and clearly state what is not covered.
 - If the sources do not contain the answer, reply exactly: "I don't know."
 - Keep answers concise and use numbered steps for procedures.
-- Cite each material factual claim with one or more source labels such as [S1]. Only cite labels that exist in the supplied sources and directly support the claim. Never invent a source label.
+- Cite each material factual claim with one or more source labels that exist in the supplied sources and directly support the claim. Use square-bracket format, for example [S1]. When multiple sources support the same claim, group them with commas, for example [S1, S2]. Never invent a source label.
 - Distinguish a procedural how-to question from a request for the current state of a specific record.
 - Generic documentation about tracking an order or viewing a ticket does not prove the current status of that user's specific record.
 - If the user asks for a specific live status and the supplied sources contain only general instructions, say that this assistant cannot retrieve the live record status, then provide the documented steps when available.
@@ -143,8 +143,16 @@ def generate_answer(question: str, chunks: list) -> dict:
             }
 
         # Convert source labels into zero-based indexes for the API layer.
+        # Gemini may group multiple supporting sources in one citation, e.g. [S1, S2].
+        citation_groups = re.findall(
+            r"\[\s*((?:S\d+)(?:\s*,\s*S\d+)*)\s*\]",
+            answer,
+            flags=re.IGNORECASE,
+        )
         cited_numbers = {
-            int(match) for match in re.findall(r"\[S(\d+)\]", answer)
+            int(number)
+            for group in citation_groups
+            for number in re.findall(r"S(\d+)", group, flags=re.IGNORECASE)
         }
         source_indexes = sorted(
             source_row_indexes[number - 1]
