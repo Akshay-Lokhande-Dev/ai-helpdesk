@@ -277,8 +277,10 @@ pytest -v
 # Opt in to a real Gemini API request (uses your GEMINI_API_KEY)
 RUN_GEMINI_INTEGRATION=1 pytest -v tests/test_gemini_integration.py
 
-# Rebuild existing KB chunks with current sanitization and chunking
-python -m scripts.reindex_kb --tenant-id <tenant-uuid>
+# Rebuild all existing KB chunks with current sanitization and chunking
+python -m scripts.reindex_kb
+# Optionally scope to one tenant and preserve a trusted public contact email:
+# python -m scripts.reindex_kb --tenant-id YOUR_VALID_TENANT_UUID --allow-email support@example.com
 
 # Run the golden-set evaluation
 python eval_golden.py
