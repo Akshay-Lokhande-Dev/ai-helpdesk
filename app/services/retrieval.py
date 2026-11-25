@@ -21,7 +21,7 @@ HYBRID_SQL = text(
             c.id,
             c.embedding <=> CAST(:qvec AS vector) AS distance,
             row_number() OVER (
-                ORDER BY c.embedding <=> CAST(:qvec AS vector), c.id
+                ORDER BY c.embedding <=> CAST(:qvec AS vector)
             ) AS rnk
         FROM content_chunks AS c
         LEFT JOIN kb_articles AS k
@@ -39,7 +39,7 @@ HYBRID_SQL = text(
                   AND c.visibility = 'public'
               )
           )
-        ORDER BY c.embedding <=> CAST(:qvec AS vector), c.id
+        ORDER BY c.embedding <=> CAST(:qvec AS vector)
         LIMIT :pool
     ),
     kw AS (
