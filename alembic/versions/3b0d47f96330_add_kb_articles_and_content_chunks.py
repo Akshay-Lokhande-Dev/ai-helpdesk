@@ -62,9 +62,9 @@ def upgrade() -> None:
     sa.UniqueConstraint('tenant_id', 'source_system', 'source_id', name='uq_kb_tenant_source')
     )
     op.create_index('ix_kb_tenant_status', 'kb_articles', ['tenant_id', 'status'], unique=False)
-    op.drop_index(op.f('hnsw_practice_embedding_idx'), table_name='hnsw_practice', postgresql_ops={'embedding': 'vector_cosine_ops'}, postgresql_using='hnsw')
-    op.drop_table('hnsw_practice')
-    # ### end Alembic commands ###
+    # Remove the old practice table only when it exists.
+    # Its indexes are automatically dropped with the table.
+    op.execute("DROP TABLE IF EXISTS hnsw_practice")
 
 
 def downgrade() -> None:
