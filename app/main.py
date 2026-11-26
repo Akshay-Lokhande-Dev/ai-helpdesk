@@ -11,12 +11,20 @@ from app.routers import comments
 from app.routers import timeline
 from fastapi.middleware.cors import CORSMiddleware
 from app.routers import ai
+from pathlib import Path
+from fastapi.responses import FileResponse
 
 
 
 
 
 app=FastAPI(redirect_slashes=False)
+FRONTEND_FILE = Path(__file__).resolve().parent / "frontend" / "index.html"
+
+
+@app.get("/", include_in_schema=False)
+def serve_frontend():
+    return FileResponse(FRONTEND_FILE)
 
 app.include_router(ai.router)
 app.include_router(tickets.router)

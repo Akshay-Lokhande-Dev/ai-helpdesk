@@ -1,0 +1,2926 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Helpdesk Portal — Multi-Tenant AI Support</title>
+
+  <!-- Prevent dark-mode flash before paint -->
+  <script>
+    (function () {
+      try {
+        var savedTheme = localStorage.getItem('helpdesk_theme');
+        if (savedTheme === 'dark') {
+          document.documentElement.classList.add('dark');
+        }
+      } catch (e) {}
+    })();
+  </script>
+
+  <!-- Google Fonts: Plus Jakarta Sans (Display/UI), Inter (Body), JetBrains Mono (Code/IDs) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind CSS CDN & Configuration -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            display: ['"Plus Jakarta Sans"', 'Inter', 'system-ui', 'sans-serif'],
+            sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'ui-monospace', 'SFMono-Regular', 'monospace'],
+          },
+          boxShadow: {
+            'subtle': '0 1px 2px 0 rgba(15, 23, 42, 0.04)',
+            'card': '0 1px 3px 0 rgba(15, 23, 42, 0.05), 0 1px 2px -1px rgba(15, 23, 42, 0.04)',
+            'popover': '0 12px 32px -4px rgba(15, 23, 42, 0.14), 0 4px 10px -2px rgba(15, 23, 42, 0.06)',
+          },
+        },
+      },
+    };
+  </script>
+
+  <style>
+    /* Subtle grid texture + radial mesh glow for the Login Brand Panel */
+    .login-grid-bg {
+      background-color: #0F172A;
+      background-image:
+        radial-gradient(circle at 18% 20%, rgba(99, 102, 241, 0.28), transparent 46%),
+        radial-gradient(circle at 82% 78%, rgba(139, 92, 246, 0.22), transparent 48%),
+        linear-gradient(to right, rgba(148, 163, 184, 0.07) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(148, 163, 184, 0.07) 1px, transparent 1px);
+      background-size: 100% 100%, 100% 100%, 36px 36px, 36px 36px;
+    }
+
+    /* Thin custom scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(148, 163, 184, 0.45);
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(100, 116, 139, 0.65);
+    }
+    .dark ::-webkit-scrollbar-thumb {
+      background: rgba(82, 82, 91, 0.65);
+    }
+    .dark ::-webkit-scrollbar-thumb:hover {
+      background: rgba(113, 113, 122, 0.85);
+    }
+
+    /* Animated typing dots for AI Assistant */
+    @keyframes typingBounce {
+      0%, 80%, 100% { transform: scale(0.65); opacity: 0.4; }
+      40% { transform: scale(1); opacity: 1; }
+    }
+    .typing-dot {
+      animation: typingBounce 1.2s infinite ease-in-out both;
+    }
+    .typing-dot:nth-child(1) { animation-delay: -0.32s; }
+    .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+
+    /* Toast entrance */
+    @keyframes toastIn {
+      from { opacity: 0; transform: translateY(10px) scale(0.97); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .toast-enter {
+      animation: toastIn 180ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+  </style>
+</head>
+
+<body class="h-full bg-[#F8FAFC] dark:bg-[#09090B] text-[#0F172A] dark:text-[#F4F4F5] font-sans antialiased selection:bg-indigo-500/20 selection:text-indigo-700 dark:selection:text-indigo-200 overflow-x-hidden">
+
+  <!-- ===================================================================== -->
+  <!-- CORS / NETWORK ERROR HELPER BANNER                                    -->
+  <!-- ===================================================================== -->
+  <div id="cors-banner" class="hidden fixed top-0 inset-x-0 z-[60] bg-amber-50 dark:bg-amber-950/95 border-b border-amber-200 dark:border-amber-800/80 px-4 py-3 shadow-md backdrop-blur">
+    <div class="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div class="flex items-start gap-3">
+        <svg class="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+        </svg>
+        <div class="text-xs sm:text-sm text-amber-950 dark:text-amber-100">
+          <p class="font-semibold">Unable to reach FastAPI backend (CORS or Server Offline)</p>
+          <p class="text-amber-800 dark:text-amber-200/90 mt-0.5">
+            Verify your server is running at <code id="cors-banner-url" class="font-mono text-xs bg-amber-200/70 dark:bg-amber-900 px-1.5 py-0.5 rounded">http://localhost:8000</code> and has
+            <code class="font-mono text-xs bg-amber-200/70 dark:bg-amber-900 px-1.5 py-0.5 rounded">CORSMiddleware</code> enabled.
+          </p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2 shrink-0">
+        <button type="button" onclick="copyCorsSnippet()" class="px-3 py-1.5 text-xs font-semibold bg-amber-600 hover:bg-amber-700 text-white rounded-lg transition">
+          Copy CORS Snippet
+        </button>
+        <button type="button" onclick="hideCorsBanner()" class="p-1.5 text-amber-700 dark:text-amber-300 hover:bg-amber-200/60 dark:hover:bg-amber-900 rounded-lg transition" aria-label="Dismiss banner">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- TOAST NOTIFICATION STACK (Bottom-Right)                               -->
+  <!-- ===================================================================== -->
+  <div id="toast-container" class="fixed bottom-4 right-4 z-[70] flex flex-col gap-2 max-w-sm w-[calc(100vw-2rem)] sm:w-full pointer-events-none"></div>
+
+  <!-- ===================================================================== -->
+  <!-- 1. SPLIT-SCREEN MODERN LOGIN PAGE                                     -->
+  <!-- ===================================================================== -->
+  <div id="login-view" class="min-h-screen grid grid-cols-1 lg:grid-cols-12">
+
+    <!-- Left Brand Panel (Desktop prominent, compact top strip on mobile) -->
+    <div class="login-grid-bg lg:col-span-5 xl:col-span-6 text-white p-6 sm:p-10 lg:p-14 flex flex-col justify-between relative overflow-hidden">
+      <!-- Top Brand Mark -->
+      <div class="flex items-center justify-between gap-4 relative z-10">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 flex items-center justify-center shadow-lg shadow-indigo-950/50 backdrop-blur-sm">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z" />
+            </svg>
+          </div>
+          <div>
+            <span class="font-display font-bold text-lg tracking-tight text-white block leading-none">Helpdesk Portal</span>
+            <span class="text-[11px] font-medium text-slate-400 tracking-wide">Enterprise AI Support</span>
+          </div>
+        </div>
+
+        <!-- Mobile theme toggle on login -->
+        <button type="button" onclick="toggleTheme()" class="lg:hidden p-2 rounded-xl bg-white/10 hover:bg-white/15 text-slate-200 transition" title="Toggle Light/Dark Mode">
+          <svg class="w-4 h-4 theme-icon-sun hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+          <svg class="w-4 h-4 theme-icon-moon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+        </button>
+      </div>
+
+      <!-- Center Headline & Feature Highlights -->
+      <div class="my-8 lg:my-0 relative z-10 max-w-lg">
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/15 border border-indigo-400/25 text-indigo-200 text-xs font-medium mb-5">
+          <span class="w-1.5 h-1.5 rounded-full bg-indigo-400"></span>
+          FastAPI Multi-Tenant Architecture
+        </div>
+        <h1 class="font-display text-3xl sm:text-4xl lg:text-[42px] font-bold tracking-tight text-white leading-[1.12]">
+          Multi-Tenant Support, Supercharged with AI
+        </h1>
+        <p class="mt-4 text-sm sm:text-base text-slate-300/90 leading-relaxed">
+          Resolve customer issues faster with strict workspace isolation, grounded RAG answers, and a real-time audit trail on every ticket.
+        </p>
+
+        <div class="mt-8 space-y-4 hidden sm:block">
+          <div class="flex items-start gap-3.5">
+            <div class="w-8 h-8 rounded-lg bg-white/[0.06] border border-white/10 flex items-center justify-center text-indigo-300 shrink-0 mt-0.5">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+            </div>
+            <div>
+              <h3 class="text-sm font-semibold text-white">Tenant-Isolated Workspaces</h3>
+              <p class="text-xs text-slate-400 mt-0.5">Role-scoped JWT authentication separating end users, agents, and admins per organization.</p>
+            </div>
+          </div>
+
+          <div class="flex items-start gap-3.5">
+            <div class="w-8 h-8 rounded-lg bg-white/[0.06] border border-white/10 flex items-center justify-center text-violet-300 shrink-0 mt-0.5">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/></svg>
+            </div>
+            <div>
+              <h3 class="text-sm font-semibold text-white">RAG AI Assistant with Citations</h3>
+              <p class="text-xs text-slate-400 mt-0.5">Instant answers backed by vector similarity scores, source chunk citations, and 1-click ticket escalation.</p>
+            </div>
+          </div>
+
+          <div class="flex items-start gap-3.5">
+            <div class="w-8 h-8 rounded-lg bg-white/[0.06] border border-white/10 flex items-center justify-center text-emerald-300 shrink-0 mt-0.5">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </div>
+            <div>
+              <h3 class="text-sm font-semibold text-white">Full Audit Timeline</h3>
+              <p class="text-xs text-slate-400 mt-0.5">Every state transition, priority change, public reply, and internal staff note tracked chronologically.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom Live Backend Connection Status Pill -->
+      <div class="relative z-10 flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-white/10">
+        <div class="inline-flex items-center gap-3 px-3.5 py-2 rounded-xl bg-white/[0.06] border border-white/10 backdrop-blur-sm text-xs">
+          <div class="flex items-center gap-2">
+            <span id="login-health-pill" class="inline-flex items-center gap-1.5 font-medium text-slate-300">
+              <span class="w-2 h-2 rounded-full bg-slate-400"></span>API
+            </span>
+            <span class="text-slate-600">·</span>
+            <span id="login-db-pill" class="inline-flex items-center gap-1.5 font-medium text-slate-300">
+              <span class="w-2 h-2 rounded-full bg-slate-400"></span>DB
+            </span>
+          </div>
+          <span class="text-slate-600">|</span>
+          <span id="login-current-url-label" class="font-mono text-[11px] text-slate-300 truncate max-w-[190px]">http://localhost:8000</span>
+          <button type="button" onclick="checkHealth()" class="p-1 text-slate-400 hover:text-white rounded-md transition" title="Refresh Backend Status">
+            <svg class="w-3.5 h-3.5 health-refresh-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+          </button>
+        </div>
+        <span class="text-[11px] text-slate-500 hidden sm:inline">OpenAPI 3.1.0 Client</span>
+      </div>
+    </div>
+
+    <!-- Right Sign-In Panel -->
+    <div class="lg:col-span-7 xl:col-span-6 flex flex-col justify-center items-center p-6 sm:p-10 relative bg-[#F8FAFC] dark:bg-[#09090B]">
+      <!-- Desktop Theme Toggle (Top Right) -->
+      <button type="button" onclick="toggleTheme()" class="hidden lg:inline-flex items-center gap-2 absolute top-6 right-6 px-3 py-2 rounded-xl border border-[#E2E8F0] dark:border-[#27272A] bg-white dark:bg-[#18181B] text-xs font-medium text-[#475569] dark:text-[#A1A1AA] hover:text-[#0F172A] dark:hover:text-white shadow-subtle transition">
+        <svg class="w-4 h-4 theme-icon-sun hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+        <svg class="w-4 h-4 theme-icon-moon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+        <span class="theme-label">Dark mode</span>
+      </button>
+
+      <div class="w-full max-w-[420px]">
+        <div class="mb-7">
+          <h2 class="font-display text-2xl font-bold tracking-tight text-[#0F172A] dark:text-[#F4F4F5]">Welcome back</h2>
+          <p class="text-sm text-[#475569] dark:text-[#A1A1AA] mt-1">Sign in with your workspace credentials to continue.</p>
+        </div>
+
+        <div class="bg-white dark:bg-[#18181B] border border-[#E2E8F0] dark:border-[#27272A] rounded-2xl shadow-card p-6 sm:p-7">
+          <!-- Inline Error Alert -->
+          <div id="login-error" class="hidden mb-5 p-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800/70 text-xs text-rose-700 dark:text-rose-300 leading-relaxed"></div>
+
+          <form id="login-form" class="space-y-4">
+            <!-- URL-Detected Workspace Pill (shown when ?tenant= or subdomain detected) -->
+            <div id="tenant-pill-container" class="hidden">
+              <div class="flex items-center justify-between gap-2 px-3.5 py-2.5 rounded-xl bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-200/80 dark:border-indigo-800/60">
+                <div class="flex items-center gap-2 min-w-0">
+                  <span class="w-2 h-2 rounded-full bg-indigo-600 dark:bg-indigo-400 shrink-0"></span>
+                  <span class="text-xs text-indigo-900 dark:text-indigo-200 truncate">
+                    Workspace: <strong id="tenant-pill-slug" class="font-mono font-semibold"></strong>
+                    <span class="text-indigo-600/80 dark:text-indigo-400/80"> · Detected from URL</span>
+                  </span>
+                </div>
+                <button type="button" onclick="unlockTenantSlugInput()" class="text-xs font-semibold text-indigo-700 dark:text-indigo-300 hover:underline shrink-0">
+                  Change
+                </button>
+              </div>
+            </div>
+
+            <!-- Tenant Slug Input -->
+            <div id="tenant-input-container">
+              <label for="login-tenant" class="block text-xs font-semibold text-[#0F172A] dark:text-[#E4E4E7] mb-1.5">Tenant Slug</label>
+              <input id="login-tenant" type="text" required autocomplete="organization" placeholder="e.g. techcorp"
+                class="w-full rounded-xl border border-[#E2E8F0] dark:border-[#27272A] bg-white dark:bg-[#111114] px-3.5 py-2.5 text-sm text-[#0F172A] dark:text-[#F4F4F5] placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/25 focus:border-indigo-500 transition" />
+            </div>
+
+            <!-- Email -->
+            <div>
+              <label for="login-email" class="block text-xs font-semibold text-[#0F172A] dark:text-[#E4E4E7] mb-1.5">Email Address</label>
+              <input id="login-email" type="email" required autocomplete="email" placeholder="agent@company.com"
+                class="w-full rounded-xl border border-[#E2E8F0] dark:border-[#27272A] bg-white dark:bg-[#111114] px-3.5 py-2.5 text-sm text-[#0F172A] dark:text-[#F4F4F5] placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/25 focus:border-indigo-500 transition" />
+            </div>
+
+            <!-- Password -->
+            <div>
+              <label for="login-password" class="block text-xs font-semibold text-[#0F172A] dark:text-[#E4E4E7] mb-1.5">Password</label>
+              <div class="relative">
+                <input id="login-password" type="password" required autocomplete="current-password" placeholder="••••••••"
+                  class="w-full rounded-xl border border-[#E2E8F0] dark:border-[#27272A] bg-white dark:bg-[#111114] px-3.5 py-2.5 pr-10 text-sm text-[#0F172A] dark:text-[#F4F4F5] placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/25 focus:border-indigo-500 transition" />
+                <button type="button" onclick="togglePasswordVisibility('login-password')" class="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300 transition" aria-label="Toggle password visibility">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <button id="login-submit-btn" type="submit"
+              class="w-full mt-2 inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 disabled:opacity-60 text-white font-semibold text-sm px-4 py-2.5 shadow-sm shadow-indigo-500/20 transition">
+              <span>Sign In</span>
+            </button>
+          </form>
+        </div>
+
+        <!-- Collapsible Server Settings Disclosure -->
+        <details id="login-server-details" class="mt-4 group bg-white dark:bg-[#18181B] border border-[#E2E8F0] dark:border-[#27272A] rounded-2xl overflow-hidden shadow-subtle">
+          <summary class="cursor-pointer list-none px-4 py-3 flex items-center justify-between text-xs font-medium text-[#475569] dark:text-[#A1A1AA] hover:text-[#0F172A] dark:hover:text-white transition">
+            <span class="inline-flex items-center gap-2">
+              <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              Server Settings
+            </span>
+            <svg class="w-4 h-4 text-slate-400 transition-transform duration-150 group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+            </svg>
+          </summary>
+          <div class="px-4 pb-4 pt-2 border-t border-[#E2E8F0] dark:border-[#27272A]">
+            <label for="login-api-url-input" class="block text-[11px] font-semibold text-[#475569] dark:text-[#A1A1AA] mb-1.5">FastAPI Base URL</label>
+            <div class="flex gap-2">
+              <input id="login-api-url-input" type="url" placeholder="http://localhost:8000"
+                class="flex-1 rounded-xl border border-[#E2E8F0] dark:border-[#27272A] bg-[#F8FAFC] dark:bg-[#111114] px-3 py-2 text-xs font-mono text-[#0F172A] dark:text-[#F4F4F5] focus:outline-none focus:ring-2 focus:ring-indigo-500/25 focus:border-indigo-500" />
+              <button type="button" onclick="saveApiUrlFromLogin()" class="px-3.5 py-2 text-xs font-semibold bg-[#0F172A] dark:bg-zinc-100 hover:bg-slate-800 dark:hover:bg-white text-white dark:text-zinc-900 rounded-xl transition shrink-0">
+                Save &amp; Test
+              </button>
+            </div>
+          </div>
+        </details>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- 2. AUTHENTICATED APPLICATION SHELL (LEFT SIDEBAR + WORKSPACE)         -->
+  <!-- ===================================================================== -->
+  <div id="app-shell" class="hidden min-h-screen flex flex-col lg:flex-row">
+
+    <!-- Mobile Top Bar -->
+    <div class="lg:hidden sticky top-0 z-30 h-14 px-4 bg-white/95 dark:bg-[#111114]/95 backdrop-blur border-b border-[#E2E8F0] dark:border-[#27272A] flex items-center justify-between gap-3">
+      <div class="flex items-center gap-2.5">
+        <button type="button" onclick="openMobileSidebar()" class="p-2 -ml-2 rounded-xl text-[#475569] dark:text-[#A1A1AA] hover:bg-slate-100 dark:hover:bg-zinc-800 transition" aria-label="Open navigation">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </button>
+        <div class="w-7 h-7 rounded-lg bg-indigo-600 text-white flex items-center justify-center">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z" />
+          </svg>
+        </div>
+        <span class="font-display font-bold text-sm text-[#0F172A] dark:text-[#F4F4F5]">Helpdesk Portal</span>
+      </div>
+      <button type="button" onclick="openCreateTicketModal()" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-xs font-semibold shadow-sm">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+        New
+      </button>
+    </div>
+
+    <!-- Mobile Sidebar Backdrop -->
+    <div id="mobile-sidebar-backdrop" class="hidden fixed inset-0 z-40 bg-slate-950/50 backdrop-blur-[1px] lg:hidden" onclick="closeMobileSidebar()"></div>
+
+    <!-- Fixed Left Sidebar (256px desktop, slide-out drawer mobile) -->
+    <aside id="app-sidebar"
+      class="fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-[#111114] border-r border-[#E2E8F0] dark:border-[#27272A] flex flex-col transform -translate-x-full lg:translate-x-0 transition-transform duration-200 ease-out overflow-visible">
+
+      <!-- Sidebar Top: Brand + Active Tenant Badge -->
+      <div class="px-4 pt-5 pb-4 flex items-center justify-between gap-2">
+        <div class="flex items-center gap-2.5 min-w-0">
+          <div class="w-8 h-8 rounded-xl bg-indigo-600 dark:bg-indigo-500 text-white flex items-center justify-center shadow-sm shadow-indigo-500/25 shrink-0">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z" />
+            </svg>
+          </div>
+          <div class="min-w-0">
+            <div class="font-display font-bold text-sm tracking-tight text-[#0F172A] dark:text-[#F4F4F5] truncate">Helpdesk Portal</div>
+            <div id="sidebar-tenant-badge" class="inline-flex items-center gap-1 text-[10px] font-mono font-medium text-indigo-600 dark:text-indigo-400 truncate max-w-[140px]">
+              workspace
+            </div>
+          </div>
+        </div>
+        <button type="button" onclick="closeMobileSidebar()" class="lg:hidden p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <!-- Primary CTA -->
+      <div class="px-4 pb-4">
+        <button type="button" onclick="openCreateTicketModal()"
+          class="w-full inline-flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 text-white text-sm font-semibold shadow-sm shadow-indigo-500/25 transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M12 4v16m8-8H4" />
+          </svg>
+          <span>New Ticket</span>
+        </button>
+      </div>
+
+      <!-- Navigation Links -->
+      <nav class="flex-1 px-3 space-y-1 overflow-y-auto">
+        <p class="px-2.5 pt-1 pb-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-zinc-500">Workspace</p>
+
+        <button id="nav-tickets-btn" type="button" onclick="switchView('tickets'); closeMobileSidebar();"
+          class="w-full flex items-center justify-between gap-2.5 px-3 py-2 rounded-xl text-sm font-medium transition">
+          <span class="flex items-center gap-2.5">
+            <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            </svg>
+            <span>Tickets</span>
+          </span>
+          <span id="nav-ticket-count" class="px-2 py-0.5 rounded-md text-[11px] font-mono font-semibold bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300">0</span>
+        </button>
+
+        <button id="nav-ai-btn" type="button" onclick="switchView('ai'); closeMobileSidebar();"
+          class="w-full flex items-center justify-between gap-2.5 px-3 py-2 rounded-xl text-sm font-medium transition">
+          <span class="flex items-center gap-2.5">
+            <svg class="w-4 h-4 shrink-0 text-indigo-500 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+            </svg>
+            <span>AI Assistant</span>
+          </span>
+          <span class="px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-indigo-50 dark:bg-indigo-500/15 text-indigo-600 dark:text-indigo-300 border border-indigo-200/70 dark:border-indigo-500/25">RAG</span>
+        </button>
+
+        <button id="nav-users-btn" type="button" onclick="switchView('users'); closeMobileSidebar();"
+          class="w-full flex items-center justify-between gap-2.5 px-3 py-2 rounded-xl text-sm font-medium transition">
+          <span class="flex items-center gap-2.5">
+            <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+            </svg>
+            <span>Users</span>
+          </span>
+          <span class="px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400">Staff</span>
+        </button>
+      </nav>
+
+      <!-- Bottom Dock: System Status Widget + User Profile Card -->
+      <div class="p-3 border-t border-[#E2E8F0] dark:border-[#27272A] space-y-2.5 overflow-visible">
+
+        <!-- System Status Widget -->
+        <div class="rounded-xl bg-[#F8FAFC] dark:bg-[#18181B] border border-[#E2E8F0] dark:border-[#27272A] p-2.5 space-y-2">
+          <div class="flex items-center justify-between gap-2">
+            <div class="flex items-center gap-2.5 text-[11px] font-medium">
+              <span id="nav-health-pill" class="inline-flex items-center gap-1.5 text-[#475569] dark:text-[#A1A1AA]" title="GET /health">
+                <span class="w-2 h-2 rounded-full bg-slate-400"></span>API
+              </span>
+              <span class="text-slate-300 dark:text-zinc-700">|</span>
+              <span id="nav-db-pill" class="inline-flex items-center gap-1.5 text-[#475569] dark:text-[#A1A1AA]" title="GET /db-check">
+                <span class="w-2 h-2 rounded-full bg-slate-400"></span>DB
+              </span>
+            </div>
+            <div class="flex items-center gap-1">
+              <button type="button" onclick="checkHealth()" class="p-1 rounded-lg text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-white dark:hover:bg-zinc-800 transition" title="Refresh Health & DB Status">
+                <svg class="w-3.5 h-3.5 health-refresh-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              </button>
+              <button type="button" onclick="toggleTheme()" class="p-1 rounded-lg text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-white dark:hover:bg-zinc-800 transition" title="Toggle Light/Dark Mode">
+                <svg class="w-3.5 h-3.5 theme-icon-sun hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                <svg class="w-3.5 h-3.5 theme-icon-moon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <button type="button" onclick="openApiUrlModal()"
+            class="w-full flex items-center justify-between gap-1.5 px-2 py-1 rounded-lg bg-white dark:bg-[#111114] border border-[#E2E8F0] dark:border-[#27272A] hover:border-indigo-300 dark:hover:border-indigo-500/50 text-[11px] font-mono text-[#475569] dark:text-[#A1A1AA] transition"
+            title="Click to configure FastAPI Base URL">
+            <span id="nav-api-url-display" class="truncate">http://localhost:8000</span>
+            <svg class="w-3 h-3 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+          </button>
+        </div>
+
+        <!-- User Profile Card + Popover (z-50) -->
+        <div class="relative overflow-visible">
+          <div class="flex items-center gap-1.5 rounded-xl border border-[#E2E8F0] dark:border-[#27272A] bg-white dark:bg-[#18181B] p-1.5">
+            <button id="profile-menu-btn" type="button" aria-haspopup="true" aria-expanded="false"
+              class="flex-1 min-w-0 flex items-center gap-2.5 p-1 rounded-lg hover:bg-slate-50 dark:hover:bg-zinc-800/70 transition text-left focus:outline-none">
+              <div id="header-avatar" class="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 text-xs font-bold flex items-center justify-center shrink-0">U</div>
+              <div class="min-w-0 flex-1 leading-tight">
+                <p id="header-user-email" class="text-xs font-semibold text-[#0F172A] dark:text-[#F4F4F5] truncate">--</p>
+                <span id="header-user-role" class="inline-block mt-0.5 text-[10px] font-semibold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">--</span>
+              </div>
+            </button>
+            <!-- 1-click direct Sign Out icon button -->
+            <button type="button" onclick="logout()" title="Sign Out" aria-label="Sign Out"
+              class="p-2 rounded-lg text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition shrink-0">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+            </button>
+          </div>
+
+          <!-- Profile Popover Panel (opens upwards above dock, z-50) -->
+          <div id="profile-popover" class="hidden absolute bottom-full left-0 mb-2 w-72 bg-white dark:bg-[#18181B] border border-[#E2E8F0] dark:border-[#27272A] rounded-2xl shadow-popover p-4 z-50">
+            <div class="pb-3 border-b border-[#E2E8F0] dark:border-[#27272A]">
+              <p class="text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-zinc-500">Signed in as</p>
+              <p id="profile-email" class="text-sm font-semibold text-[#0F172A] dark:text-[#F4F4F5] break-all mt-0.5">--</p>
+              <div id="profile-role-container" class="mt-2"></div>
+            </div>
+
+            <div class="py-3 space-y-2.5 text-xs">
+              <div>
+                <span class="text-[#475569] dark:text-[#A1A1AA] font-medium block mb-1">User ID</span>
+                <div class="flex items-center justify-between gap-2 bg-[#F8FAFC] dark:bg-[#111114] border border-[#E2E8F0] dark:border-[#27272A] rounded-xl px-2.5 py-1.5">
+                  <code id="profile-user-id" class="font-mono text-[11px] text-[#0F172A] dark:text-zinc-300 truncate">--</code>
+                  <button type="button" onclick="copyCurrentUserId()" class="text-indigo-600 dark:text-indigo-400 hover:underline font-semibold shrink-0">Copy</button>
+                </div>
+              </div>
+              <div>
+                <span class="text-[#475569] dark:text-[#A1A1AA] font-medium block mb-1">Tenant ID</span>
+                <div class="flex items-center justify-between gap-2 bg-[#F8FAFC] dark:bg-[#111114] border border-[#E2E8F0] dark:border-[#27272A] rounded-xl px-2.5 py-1.5">
+                  <code id="profile-tenant-id" class="font-mono text-[11px] text-[#0F172A] dark:text-zinc-300 truncate">--</code>
+                  <button type="button" onclick="copyCurrentTenantId()" class="text-indigo-600 dark:text-indigo-400 hover:underline font-semibold shrink-0">Copy</button>
+                </div>
+              </div>
+            </div>
+
+            <button type="button" onclick="logout()"
+              class="w-full inline-flex items-center justify-center gap-2 px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-semibold text-xs shadow-sm transition">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+              Sign Out
+            </button>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Workspace Area -->
+    <main class="flex-1 lg:pl-64 min-w-0 flex flex-col">
+      <div class="flex-1 max-w-[1360px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+
+        <!-- =============================================================== -->
+        <!-- 3. TICKETS WORKSPACE                                            -->
+        <!-- =============================================================== -->
+        <section id="view-tickets" class="space-y-6">
+          <!-- Page Header -->
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h1 id="tickets-page-title" class="font-display text-2xl font-bold tracking-tight text-[#0F172A] dark:text-[#F4F4F5]">Tickets</h1>
+              <p id="tickets-page-subtitle" class="text-sm text-[#475569] dark:text-[#A1A1AA] mt-0.5">Track, triage, and resolve support requests across your workspace.</p>
+            </div>
+            <div class="flex items-center gap-2.5">
+              <button id="refresh-tickets-btn" type="button" onclick="loadTickets()"
+                class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-[#E2E8F0] dark:border-[#27272A] bg-white dark:bg-[#18181B] hover:bg-slate-50 dark:hover:bg-zinc-800 text-xs sm:text-sm font-medium text-[#0F172A] dark:text-[#F4F4F5] shadow-subtle transition">
+                <svg id="tickets-refresh-icon" class="w-4 h-4 text-[#475569] dark:text-[#A1A1AA]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                <span>Refresh</span>
+              </button>
+              <button type="button" onclick="openCreateTicketModal()"
+                class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 text-white text-xs sm:text-sm font-semibold shadow-sm shadow-indigo-500/20 transition">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                </svg>
+                <span>New Ticket</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Clickable KPI Strip (5 Cards) -->
+          <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+            <button type="button" data-kpi="all" onclick="filterByKpi('all')"
+              class="kpi-card text-left bg-white dark:bg-[#18181B] border border-[#E2E8F0] dark:border-[#27272A] rounded-2xl p-4 shadow-subtle hover:border-indigo-300 dark:hover:border-indigo-500/50 transition">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-medium text-[#475569] dark:text-[#A1A1AA]">Total</span>
+                <span class="w-2 h-2 rounded-full bg-slate-400"></span>
+              </div>
+              <p id="stat-total" class="font-display text-2xl font-bold text-[#0F172A] dark:text-[#F4F4F5] mt-2">0</p>
+            </button>
+
+            <button type="button" data-kpi="new" onclick="filterByKpi('new')"
+              class="kpi-card text-left bg-white dark:bg-[#18181B] border border-[#E2E8F0] dark:border-[#27272A] rounded-2xl p-4 shadow-subtle hover:border-sky-300 dark:hover:border-sky-500/50 transition">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-medium text-sky-600 dark:text-sky-400">New</span>
+                <span class="w-2 h-2 rounded-full bg-sky-500"></span>
+              </div>
+              <p id="stat-new" class="font-display text-2xl font-bold text-[#0F172A] dark:text-[#F4F4F5] mt-2">0</p>
+            </button>
+
+            <button type="button" data-kpi="in_progress" onclick="filterByKpi('in_progress')"
+              class="kpi-card text-left bg-white dark:bg-[#18181B] border border-[#E2E8F0] dark:border-[#27272A] rounded-2xl p-4 shadow-subtle hover:border-indigo-300 dark:hover:border-indigo-500/50 transition">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-medium text-indigo-600 dark:text-indigo-400">In Progress</span>
+                <span class="w-2 h-2 rounded-full bg-indigo-500"></span>
+              </div>
+              <p id="stat-in-progress" class="font-display text-2xl font-bold text-[#0F172A] dark:text-[#F4F4F5] mt-2">0</p>
+            </button>
+
+            <button type="button" data-kpi="on_hold" onclick="filterByKpi('on_hold')"
+              class="kpi-card text-left bg-white dark:bg-[#18181B] border border-[#E2E8F0] dark:border-[#27272A] rounded-2xl p-4 shadow-subtle hover:border-amber-300 dark:hover:border-amber-500/50 transition">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-medium text-amber-600 dark:text-amber-400">On Hold</span>
+                <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+              </div>
+              <p id="stat-on-hold" class="font-display text-2xl font-bold text-[#0F172A] dark:text-[#F4F4F5] mt-2">0</p>
+            </button>
+
+            <button type="button" data-kpi="resolved_closed" onclick="filterByKpi('resolved_closed')"
+              class="kpi-card col-span-2 sm:col-span-1 text-left bg-white dark:bg-[#18181B] border border-[#E2E8F0] dark:border-[#27272A] rounded-2xl p-4 shadow-subtle hover:border-emerald-300 dark:hover:border-emerald-500/50 transition">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-medium text-emerald-600 dark:text-emerald-400">Resolved / Closed</span>
+                <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+              </div>
+              <p id="stat-resolved" class="font-display text-2xl font-bold text-[#0F172A] dark:text-[#F4F4F5] mt-2">0</p>
+            </button>
+          </div>
+
+          <!-- Unified Filter + Direct Lookup Toolbar -->
+          <div class="bg-white dark:bg-[#18181B] border border-[#E2E8F0] dark:border-[#27272A] rounded-2xl p-3.5 shadow-subtle flex flex-col xl:flex-row xl:items-center gap-3">
+            <!-- Search + Dropdowns -->
+            <div class="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2.5 flex-1">
+              <div class="relative flex-1 min-w-[200px]">
+                <svg class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <input id="filter-search" type="text" placeholder="Filter by ticket #, title, or description..."
+                  oninput="renderTicketsList()"
+                  class="w-full pl-9 pr-3 py-2 text-sm rounded-xl border border-[#E2E8F0] dark:border-[#27272A] bg-[#F8FAFC] dark:bg-[#111114] text-[#0F172A] dark:text-[#F4F4F5] placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus:bg-white dark:focus:bg-[#18181B] focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition" />
+              </div>
+
+              <select id="filter-state" onchange="onStateSelectChange()"
+                class="rounded-xl border border-[#E2E8F0] dark:border-[#27272A] bg-white dark:bg-[#111114] px-3 py-2 text-sm text-[#0F172A] dark:text-[#F4F4F5] focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500">
+                <option value="all">All States</option>
+                <option value="new">New</option>
+                <option value="in_progress">In Progress</option>
+                <option value="on_hold">On Hold</option>
+                <option value="resolved">Resolved</option>
+                <option value="closed">Closed</option>
+                <option value="cancelled">Cancelled</option>
+                <option value="resolved_closed">Resolved &amp; Closed</option>
+              </select>
+
+              <select id="filter-priority" onchange="renderTicketsList()"
+                class="rounded-xl border border-[#E2E8F0] dark:border-[#27272A] bg-white dark:bg-[#111114] px-3 py-2 text-sm text-[#0F172A] dark:text-[#F4F4F5] focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500">
+                <option value="all">All Priorities</option>
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+                <option value="critical">Critical</option>
+              </select>
+            </div>
+
+            <!-- Divider -->
+            <div class="hidden xl:block w-px h-7 bg-[#E2E8F0] dark:bg-[#27272A]"></div>
+
+            <!-- Inline Direct Ticket # Lookup -->
+            <form id="ticket-lookup-form" class="flex items-center gap-2 shrink-0">
+              <div class="relative flex-1 xl:w-48">
+                <input id="lookup-ticket-number" type="text" placeholder="Jump to # (e.g. T-07A8...)"
+                  class="w-full rounded-xl border border-[#E2E8F0] dark:border-[#27272A] bg-[#F8FAFC] dark:bg-[#111114] px-3 py-2 text-xs font-mono text-[#0F172A] dark:text-[#F4F4F5] placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus:bg-white dark:focus:bg-[#18181B] focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" />
+              </div>
+              <button id="lookup-ticket-btn" type="submit"
+                class="px-3.5 py-2 rounded-xl bg-[#0F172A] dark:bg-zinc-100 hover:bg-slate-800 dark:hover:bg-white text-white dark:text-zinc-900 text-xs font-semibold transition shrink-0">
+                Open
+              </button>
+            </form>
+          </div>
+
+          <!-- High-Craft Ticket Table -->
+          <div class="bg-white dark:bg-[#18181B] border border-[#E2E8F0] dark:border-[#27272A] rounded-2xl shadow-card overflow-hidden">
+            <!-- Skeleton Loader -->
+            <div id="tickets-loading" class="hidden divide-y divide-[#E2E8F0] dark:divide-[#27272A]">
+              <div class="p-4 flex items-center gap-4 animate-pulse">
+                <div class="h-6 w-24 bg-slate-200 dark:bg-zinc-800 rounded-lg"></div>
+                <div class="flex-1 space-y-2"><div class="h-4 w-2/5 bg-slate-200 dark:bg-zinc-800 rounded"></div><div class="h-3 w-3/5 bg-slate-100 dark:bg-zinc-800/60 rounded"></div></div>
+                <div class="h-6 w-20 bg-slate-200 dark:bg-zinc-800 rounded-full"></div>
+                <div class="h-6 w-16 bg-slate-200 dark:bg-zinc-800 rounded-full"></div>
+              </div>
+              <div class="p-4 flex items-center gap-4 animate-pulse">
+                <div class="h-6 w-24 bg-slate-200 dark:bg-zinc-800 rounded-lg"></div>
+                <div class="flex-1 space-y-2"><div class="h-4 w-1/3 bg-slate-200 dark:bg-zinc-800 rounded"></div><div class="h-3 w-1/2 bg-slate-100 dark:bg-zinc-800/60 rounded"></div></div>
+                <div class="h-6 w-20 bg-slate-200 dark:bg-zinc-800 rounded-full"></div>
+                <div class="h-6 w-16 bg-slate-200 dark:bg-zinc-800 rounded-full"></div>
+              </div>
+              <div class="p-4 flex items-center gap-4 animate-pulse">
+                <div class="h-6 w-24 bg-slate-200 dark:bg-zinc-800 rounded-lg"></div>
+                <div class="flex-1 space-y-2"><div class="h-4 w-1/2 bg-slate-200 dark:bg-zinc-800 rounded"></div><div class="h-3 w-2/3 bg-slate-100 dark:bg-zinc-800/60 rounded"></div></div>
+                <div class="h-6 w-20 bg-slate-200 dark:bg-zinc-800 rounded-full"></div>
+                <div class="h-6 w-16 bg-slate-200 dark:bg-zinc-800 rounded-full"></div>
+              </div>
+            </div>
+
+            <!-- Empty State -->
+            <div id="tickets-empty" class="hidden py-16 px-4 text-center">
+              <div class="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-slate-100 dark:bg-zinc-800 text-slate-400 dark:text-zinc-500 mb-3">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                </svg>
+              </div>
+              <h3 class="font-display text-sm font-semibold text-[#0F172A] dark:text-[#F4F4F5]">No tickets match your view</h3>
+              <p class="text-xs text-[#475569] dark:text-[#A1A1AA] mt-1 max-w-xs mx-auto">Try clearing your active filters or create a new ticket to get started.</p>
+            </div>
+
+            <!-- Table -->
+            <div id="tickets-table-wrapper" class="overflow-x-auto">
+              <table class="w-full text-left border-collapse">
+                <thead>
+                  <tr class="border-b border-[#E2E8F0] dark:border-[#27272A] bg-[#F8FAFC] dark:bg-[#111114] text-[11px] font-semibold uppercase tracking-wider text-[#475569] dark:text-[#A1A1AA]">
+                    <th class="py-3 px-4 w-36">Ticket #</th>
+                    <th class="py-3 px-4">Title &amp; Summary</th>
+                    <th class="py-3 px-4 w-36">State</th>
+                    <th class="py-3 px-4 w-28">Priority</th>
+                    <th class="py-3 px-4 w-44">Created</th>
+                    <th class="py-3 px-3 w-10"></th>
+                  </tr>
+                </thead>
+                <tbody id="tickets-tbody" class="divide-y divide-[#E2E8F0]/70 dark:divide-[#27272A] text-sm"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- =============================================================== -->
+        <!-- 5. AI ASSISTANT WORKSPACE (POST /ai/ask)                        -->
+        <!-- =============================================================== -->
+        <section id="view-ai" class="hidden max-w-4xl mx-auto flex flex-col" style="height: calc(100vh - 6rem); min-height: 540px;">
+          <!-- Header -->
+          <div class="flex items-center justify-between gap-3 pb-4 shrink-0">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 text-white flex items-center justify-center shadow-sm shadow-indigo-500/25 shrink-0">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                </svg>
+              </div>
+              <div>
+                <h1 class="font-display text-xl font-bold tracking-tight text-[#0F172A] dark:text-[#F4F4F5]">AI Helpdesk Assistant</h1>
+                <p class="text-xs text-[#475569] dark:text-[#A1A1AA]">Grounded answers with vector similarity scores &amp; source citations</p>
+              </div>
+            </div>
+            <button type="button" onclick="clearAiChat()"
+              class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#E2E8F0] dark:border-[#27272A] bg-white dark:bg-[#18181B] hover:bg-slate-50 dark:hover:bg-zinc-800 text-xs font-medium text-[#475569] dark:text-[#A1A1AA] transition">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+              Clear Chat
+            </button>
+          </div>
+
+          <!-- Chat Surface Card -->
+          <div class="flex-1 min-h-0 bg-white dark:bg-[#18181B] border border-[#E2E8F0] dark:border-[#27272A] rounded-2xl shadow-card flex flex-col overflow-hidden">
+            <!-- Scrollable Feed -->
+            <div id="ai-chat-feed" class="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5 bg-[#F8FAFC]/60 dark:bg-[#09090B]/40"></div>
+
+            <!-- Anchored Composer Bar -->
+            <div class="border-t border-[#E2E8F0] dark:border-[#27272A] bg-white dark:bg-[#18181B] p-3.5 sm:p-4 shrink-0">
+              <div id="ai-ask-error" class="hidden mb-2.5 p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800/70 text-xs text-rose-700 dark:text-rose-300"></div>
+
+              <form id="ai-ask-form" class="space-y-2">
+                <div class="flex items-end gap-2">
+                  <textarea id="ai-question-input" rows="2" minlength="3" maxlength="500" required
+                    placeholder="Ask anything about IT issues, policies, or past tickets..."
+                    oninput="updateAiCharCount()"
+                    class="flex-1 rounded-xl border border-[#E2E8F0] dark:border-[#27272A] bg-[#F8FAFC] dark:bg-[#111114] px-3.5 py-2.5 text-sm text-[#0F172A] dark:text-[#F4F4F5] placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus:bg-white dark:focus:bg-[#18181B] focus:outline-none focus:ring-2 focus:ring-indigo-500/25 focus:border-indigo-500 resize-none transition"></textarea>
+                  <button id="ai-ask-btn" type="submit"
+                    class="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 h-[44px] rounded-xl bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 disabled:opacity-60 text-white text-sm font-semibold shadow-sm shadow-indigo-500/20 transition shrink-0">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+                    <span>Send</span>
+                  </button>
+                </div>
+                <div class="flex items-center justify-between text-[11px] text-slate-400 dark:text-zinc-500 px-0.5">
+                  <span><kbd class="font-mono px-1 py-0.5 rounded bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-300">Enter</kbd> to send · <kbd class="font-mono px-1 py-0.5 rounded bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-300">Shift+Enter</kbd> new line</span>
+                  <span id="ai-char-count" class="font-mono">0 / 500</span>
+                </div>
+              </form>
+            </div>
+          </div>
+        </section>
+
+        <!-- =============================================================== -->
+        <!-- 6. USERS & DIRECTORY WORKSPACE (Staff Only)                     -->
+        <!-- =============================================================== -->
+        <section id="view-users" class="hidden space-y-6">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h1 class="font-display text-2xl font-bold tracking-tight text-[#0F172A] dark:text-[#F4F4F5]">Users &amp; Directory</h1>
+              <p class="text-sm text-[#475569] dark:text-[#A1A1AA] mt-0.5">Provision tenant accounts and inspect user records by UUID.</p>
+            </div>
+            <div id="users-rbac-notice" class="hidden inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800/70 text-xs font-medium text-amber-800 dark:text-amber-300">
+              <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+              <span>Signed in as <strong id="users-current-role"></strong> — creating users may require <code class="font-mono">admin</code> role.</span>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            <!-- Create User Card (POST /users) -->
+            <div class="lg:col-span-7 bg-white dark:bg-[#18181B] border border-[#E2E8F0] dark:border-[#27272A] rounded-2xl shadow-card p-6">
+              <div class="mb-5">
+                <h2 class="font-display text-base font-bold text-[#0F172A] dark:text-[#F4F4F5]">Create New User</h2>
+                <p class="text-xs text-[#475569] dark:text-[#A1A1AA] mt-0.5">Registers a user via <code class="font-mono bg-slate-100 dark:bg-zinc-800 px-1 py-0.5 rounded">POST /users</code>.</p>
+              </div>
+
+              <div id="create-user-error" class="hidden mb-4 p-3 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800/70 text-xs text-rose-700 dark:text-rose-300"></div>
+
+              <form id="create-user-form" class="space-y-4">
+                <div>
+                  <label for="user-tenant-id" class="block text-xs font-semibold text-[#0F172A] dark:text-[#E4E4E7] mb-1.5">Tenant ID (UUID)</label>
+                  <input id="user-tenant-id" type="text" required placeholder="Auto-filled from /auth/me"
+                    class="w-full rounded-xl border border-[#E2E8F0] dark:border-[#27272A] bg-[#F8FAFC] dark:bg-[#111114] px-3.5 py-2 text-xs font-mono text-[#0F172A] dark:text-[#F4F4F5] focus:bg-white dark:focus:bg-[#18181B] focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" />
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label for="user-name" class="block text-xs font-semibold text-[#0F172A] dark:text-[#E4E4E7] mb-1.5">Full Name</label>
+                    <input id="user-name" type="text" required placeholder="Priya Sharma"
+                      class="w-full rounded-xl border border-[#E2E8F0] dark:border-[#27272A] bg-white dark:bg-[#111114] px-3.5 py-2 text-sm text-[#0F172A] dark:text-[#F4F4F5] focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" />
+                  </div>
+                  <div>
+                    <label for="user-email" class="block text-xs font-semibold text-[#0F172A] dark:text-[#E4E4E7] mb-1.5">Email Address</label>
+                    <input id="user-email" type="email" required placeholder="priya@company.com"
+                      class="w-full rounded-xl border border-[#E2E8F0] dark:border-[#27272A] bg-white dark:bg-[#111114] px-3.5 py-2 text-sm text-[#0F172A] dark:text-[#F4F4F5] focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" />
+                  </div>
+                </div>
+
+                <!-- Visual Role Selector -->
+                <div>
+                  <span class="block text-xs font-semibold text-[#0F172A] dark:text-[#E4E4E7] mb-1.5">Role</span>
+                  <div class="grid grid-cols-3 gap-2.5">
+                    <label class="cursor-pointer">
+                      <input type="radio" name="user-role" value="end_user" checked class="peer sr-only" />
+                      <div class="rounded-xl border border-[#E2E8F0] dark:border-[#27272A] bg-[#F8FAFC] dark:bg-[#111114] p-2.5 text-center peer-checked:border-indigo-500 peer-checked:bg-indigo-50/70 dark:peer-checked:bg-indigo-500/15 peer-checked:ring-1 peer-checked:ring-indigo-500 transition">
+                        <span class="block text-xs font-semibold text-[#0F172A] dark:text-[#F4F4F5]">End User</span>
+                        <span class="block text-[10px] text-[#475569] dark:text-[#A1A1AA] mt-0.5">Own tickets</span>
+                      </div>
+                    </label>
+                    <label class="cursor-pointer">
+                      <input type="radio" name="user-role" value="agent" class="peer sr-only" />
+                      <div class="rounded-xl border border-[#E2E8F0] dark:border-[#27272A] bg-[#F8FAFC] dark:bg-[#111114] p-2.5 text-center peer-checked:border-indigo-500 peer-checked:bg-indigo-50/70 dark:peer-checked:bg-indigo-500/15 peer-checked:ring-1 peer-checked:ring-indigo-500 transition">
+                        <span class="block text-xs font-semibold text-[#0F172A] dark:text-[#F4F4F5]">Agent</span>
+                        <span class="block text-[10px] text-[#475569] dark:text-[#A1A1AA] mt-0.5">Triage &amp; notes</span>
+                      </div>
+                    </label>
+                    <label class="cursor-pointer">
+                      <input type="radio" name="user-role" value="admin" class="peer sr-only" />
+                      <div class="rounded-xl border border-[#E2E8F0] dark:border-[#27272A] bg-[#F8FAFC] dark:bg-[#111114] p-2.5 text-center peer-checked:border-indigo-500 peer-checked:bg-indigo-50/70 dark:peer-checked:bg-indigo-500/15 peer-checked:ring-1 peer-checked:ring-indigo-500 transition">
+                        <span class="block text-xs font-semibold text-[#0F172A] dark:text-[#F4F4F5]">Admin</span>
+                        <span class="block text-[10px] text-[#475569] dark:text-[#A1A1AA] mt-0.5">Full control</span>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+
+                <div>
+                  <label for="user-password" class="block text-xs font-semibold text-[#0F172A] dark:text-[#E4E4E7] mb-1.5">Password (min 8 characters)</label>
+                  <div class="relative">
+                    <input id="user-password" type="password" required minlength="8" placeholder="At least 8 characters"
+                      class="w-full rounded-xl border border-[#E2E8F0] dark:border-[#27272A] bg-white dark:bg-[#111114] px-3.5 py-2 pr-10 text-sm text-[#0F172A] dark:text-[#F4F4F5] focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" />
+                    <button type="button" onclick="togglePasswordVisibility('user-password')" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                    </button>
+                  </div>
+                </div>
+
+                <div class="pt-1">
+                  <button id="create-user-btn" type="submit"
+                    class="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 disabled:opacity-60 text-white text-sm font-semibold shadow-sm shadow-indigo-500/20 transition">
+                    Create User
+                  </button>
+                </div>
+              </form>
+
+              <!-- 201 Confirmation Card -->
+              <div id="created-user-result" class="hidden mt-6 pt-5 border-t border-[#E2E8F0] dark:border-[#27272A]">
+                <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400 mb-2.5">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                  User Provisioned (201 Created)
+                </span>
+                <div id="created-user-card" class="rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/60 p-4"></div>
+              </div>
+            </div>
+
+            <!-- Lookup User Card (GET /users/test/{user_id}) -->
+            <div class="lg:col-span-5 bg-white dark:bg-[#18181B] border border-[#E2E8F0] dark:border-[#27272A] rounded-2xl shadow-card p-6 space-y-4">
+              <div>
+                <h2 class="font-display text-base font-bold text-[#0F172A] dark:text-[#F4F4F5]">Lookup User</h2>
+                <p class="text-xs text-[#475569] dark:text-[#A1A1AA] mt-0.5">Inspect a user profile via <code class="font-mono bg-slate-100 dark:bg-zinc-800 px-1 py-0.5 rounded">GET /users/test/{user_id}</code>.</p>
+              </div>
+
+              <form id="test-user-form" class="space-y-3">
+                <div>
+                  <div class="flex items-center justify-between mb-1.5">
+                    <label for="test-user-id" class="text-xs font-semibold text-[#0F172A] dark:text-[#E4E4E7]">User UUID</label>
+                    <button type="button" onclick="fillOwnUserIdForLookup()" class="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:underline">Use my ID</button>
+                  </div>
+                  <input id="test-user-id" type="text" required placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                    class="w-full rounded-xl border border-[#E2E8F0] dark:border-[#27272A] bg-[#F8FAFC] dark:bg-[#111114] px-3.5 py-2 text-xs font-mono text-[#0F172A] dark:text-[#F4F4F5] focus:bg-white dark:focus:bg-[#18181B] focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" />
+                </div>
+                <button id="test-user-btn" type="submit"
+                  class="w-full inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-[#0F172A] dark:bg-zinc-100 hover:bg-slate-800 dark:hover:bg-white disabled:opacity-60 text-white dark:text-zinc-900 text-xs font-semibold transition">
+                  Fetch User
+                </button>
+              </form>
+
+              <div id="test-user-error" class="hidden p-3 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800/70 text-xs text-rose-700 dark:text-rose-300"></div>
+
+              <div id="test-user-output" class="hidden space-y-3">
+                <div id="test-user-card" class="rounded-2xl bg-[#F8FAFC] dark:bg-[#111114] border border-[#E2E8F0] dark:border-[#27272A] p-4"></div>
+                <details class="text-xs">
+                  <summary class="cursor-pointer text-[#475569] dark:text-[#A1A1AA] hover:text-[#0F172A] dark:hover:text-white font-medium">Raw JSON Response</summary>
+                  <pre id="test-user-json" class="mt-2 p-3 rounded-xl bg-slate-950 text-slate-100 font-mono text-[11px] overflow-x-auto"></pre>
+                </details>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- 7. CREATE TICKET MODAL (POST /tickets)                                -->
+  <!-- ===================================================================== -->
+  <div id="create-ticket-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="fixed inset-0 bg-slate-950/50 backdrop-blur-[2px]" onclick="closeCreateTicketModal()"></div>
+    <div class="relative w-full max-w-lg bg-white dark:bg-[#18181B] rounded-2xl shadow-popover border border-[#E2E8F0] dark:border-[#27272A] overflow-hidden z-10">
+      <div class="flex items-center justify-between px-6 py-4 border-b border-[#E2E8F0] dark:border-[#27272A]">
+        <div>
+          <h3 class="font-display text-base font-bold text-[#0F172A] dark:text-[#F4F4F5]">Create Support Ticket</h3>
+          <p class="text-xs text-[#475569] dark:text-[#A1A1AA] mt-0.5">Submit a new issue to your workspace queue</p>
+        </div>
+        <button type="button" onclick="closeCreateTicketModal()" class="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded-xl transition">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <form id="create-ticket-form" class="p-6 space-y-4">
+        <div id="create-ticket-error" class="hidden p-3 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800/70 text-xs text-rose-700 dark:text-rose-300"></div>
+
+        <div>
+          <label for="new-ticket-title" class="block text-xs font-semibold text-[#0F172A] dark:text-[#E4E4E7] mb-1.5">Title <span class="text-rose-500">*</span></label>
+          <input id="new-ticket-title" type="text" required placeholder="Brief summary of the issue"
+            class="w-full rounded-xl border border-[#E2E8F0] dark:border-[#27272A] bg-white dark:bg-[#111114] px-3.5 py-2.5 text-sm text-[#0F172A] dark:text-[#F4F4F5] focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" />
+        </div>
+
+        <div>
+          <label for="new-ticket-priority" class="block text-xs font-semibold text-[#0F172A] dark:text-[#E4E4E7] mb-1.5">Priority</label>
+          <select id="new-ticket-priority"
+            class="w-full rounded-xl border border-[#E2E8F0] dark:border-[#27272A] bg-white dark:bg-[#111114] px-3.5 py-2.5 text-sm text-[#0F172A] dark:text-[#F4F4F5] focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500">
+            <option value="low">Low</option>
+            <option value="medium" selected>Medium</option>
+            <option value="high">High</option>
+            <option value="critical">Critical</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="new-ticket-description" class="block text-xs font-semibold text-[#0F172A] dark:text-[#E4E4E7] mb-1.5">Description <span class="text-slate-400 font-normal">(optional)</span></label>
+          <textarea id="new-ticket-description" rows="4" placeholder="Steps to reproduce, impact, or relevant context..."
+            class="w-full rounded-xl border border-[#E2E8F0] dark:border-[#27272A] bg-white dark:bg-[#111114] px-3.5 py-2.5 text-sm text-[#0F172A] dark:text-[#F4F4F5] focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 resize-y"></textarea>
+        </div>
+
+        <div class="flex items-center justify-end gap-2.5 pt-2">
+          <button type="button" onclick="closeCreateTicketModal()"
+            class="px-4 py-2 rounded-xl border border-[#E2E8F0] dark:border-[#27272A] hover:bg-slate-50 dark:hover:bg-zinc-800 text-sm font-medium text-[#475569] dark:text-[#A1A1AA] transition">
+            Cancel
+          </button>
+          <button id="create-ticket-submit-btn" type="submit"
+            class="inline-flex items-center justify-center gap-2 px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 disabled:opacity-60 text-white text-sm font-semibold shadow-sm shadow-indigo-500/20 transition">
+            Create Ticket
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- BASE URL CONFIG MODAL (from Sidebar System Status Widget)             -->
+  <!-- ===================================================================== -->
+  <div id="api-url-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="fixed inset-0 bg-slate-950/50 backdrop-blur-[2px]" onclick="closeApiUrlModal()"></div>
+    <div class="relative w-full max-w-md bg-white dark:bg-[#18181B] rounded-2xl shadow-popover border border-[#E2E8F0] dark:border-[#27272A] p-6 z-10 space-y-4">
+      <div class="flex items-center justify-between">
+        <div>
+          <h3 class="font-display text-base font-bold text-[#0F172A] dark:text-[#F4F4F5]">FastAPI Server Settings</h3>
+          <p class="text-xs text-[#475569] dark:text-[#A1A1AA] mt-0.5">Configure the backend URL used for all API requests</p>
+        </div>
+        <button type="button" onclick="closeApiUrlModal()" class="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 rounded-xl">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div>
+        <label for="modal-api-url-input" class="block text-xs font-semibold text-[#0F172A] dark:text-[#E4E4E7] mb-1.5">Base URL</label>
+        <input id="modal-api-url-input" type="url" placeholder="http://localhost:8000"
+          class="w-full rounded-xl border border-[#E2E8F0] dark:border-[#27272A] bg-[#F8FAFC] dark:bg-[#111114] px-3.5 py-2.5 text-xs font-mono text-[#0F172A] dark:text-[#F4F4F5] focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" />
+      </div>
+      <div class="flex items-center justify-end gap-2 pt-1">
+        <button type="button" onclick="closeApiUrlModal()" class="px-3.5 py-2 rounded-xl border border-[#E2E8F0] dark:border-[#27272A] text-xs font-medium text-[#475569] dark:text-[#A1A1AA] hover:bg-slate-50 dark:hover:bg-zinc-800 transition">Cancel</button>
+        <button type="button" onclick="saveApiUrlFromModal()" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold transition">Save &amp; Test</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- 4. TICKET DETAIL SLIDE-OVER DRAWER                                    -->
+  <!-- ===================================================================== -->
+  <div id="ticket-drawer-container" class="hidden fixed inset-0 z-50">
+    <div id="ticket-drawer-backdrop" class="fixed inset-0 bg-slate-950/45 backdrop-blur-[2px] transition-opacity" onclick="closeTicketDrawer()"></div>
+
+    <aside id="ticket-drawer-panel"
+      class="fixed inset-y-0 right-0 w-full max-w-2xl bg-white dark:bg-[#111114] shadow-2xl border-l border-[#E2E8F0] dark:border-[#27272A] flex flex-col transform transition-transform duration-200 ease-out translate-x-full">
+
+      <!-- Sticky Drawer Header -->
+      <div class="px-5 sm:px-6 py-4 border-b border-[#E2E8F0] dark:border-[#27272A] flex items-start justify-between gap-4 bg-[#F8FAFC] dark:bg-[#18181B] shrink-0">
+        <div class="min-w-0 space-y-1.5">
+          <div class="flex items-center flex-wrap gap-2">
+            <button type="button" onclick="copyActiveTicketNumber()" title="Click to copy ticket number"
+              class="inline-flex items-center gap-1.5 font-mono text-xs font-semibold px-2.5 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border border-indigo-200/80 dark:border-indigo-500/30 hover:bg-indigo-100 dark:hover:bg-indigo-500/25 transition">
+              <span id="drawer-ticket-number">--</span>
+              <svg class="w-3 h-3 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+            </button>
+            <span id="drawer-state-badge"></span>
+            <span id="drawer-priority-badge"></span>
+          </div>
+          <h2 id="drawer-title" class="font-display text-lg font-bold text-[#0F172A] dark:text-[#F4F4F5] leading-snug">--</h2>
+        </div>
+        <button type="button" onclick="closeTicketDrawer()" class="p-2 text-slate-400 hover:text-slate-700 dark:hover:text-zinc-200 hover:bg-slate-200/60 dark:hover:bg-zinc-800 rounded-xl transition shrink-0" aria-label="Close drawer">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <!-- Drawer Scrollable Body -->
+      <div class="flex-1 overflow-y-auto px-5 sm:px-6 py-5 space-y-6">
+        <!-- Ticket Overview Card -->
+        <div class="bg-[#F8FAFC] dark:bg-[#18181B] border border-[#E2E8F0] dark:border-[#27272A] rounded-2xl p-4 sm:p-5 space-y-4">
+          <div id="drawer-description" class="text-sm text-[#0F172A] dark:text-zinc-200 whitespace-pre-wrap leading-relaxed"></div>
+
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-3.5 border-t border-[#E2E8F0] dark:border-[#27272A] text-xs">
+            <div>
+              <span class="text-[11px] text-[#475569] dark:text-[#A1A1AA] block">Created</span>
+              <span id="drawer-created-at" class="font-medium text-[#0F172A] dark:text-[#F4F4F5] mt-0.5 block">--</span>
+            </div>
+            <div>
+              <span class="text-[11px] text-[#475569] dark:text-[#A1A1AA] block">Updated</span>
+              <span id="drawer-updated-at" class="font-medium text-[#0F172A] dark:text-[#F4F4F5] mt-0.5 block">--</span>
+            </div>
+            <div>
+              <span class="text-[11px] text-[#475569] dark:text-[#A1A1AA] block">Resolved</span>
+              <span id="drawer-resolved-at" class="font-medium text-[#0F172A] dark:text-[#F4F4F5] mt-0.5 block">--</span>
+            </div>
+            <div>
+              <span class="text-[11px] text-[#475569] dark:text-[#A1A1AA] block">Ticket ID</span>
+              <button type="button" onclick="copyActiveTicketId()" class="mt-0.5 font-mono text-[11px] text-indigo-600 dark:text-indigo-400 hover:underline truncate max-w-full block text-left" title="Copy Ticket UUID">
+                <span id="drawer-ticket-id">--</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Resolution Callout Card -->
+        <div id="drawer-resolution-box" class="hidden rounded-2xl bg-emerald-50/80 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/60 p-4">
+          <div class="flex items-center gap-2 mb-1.5">
+            <svg class="w-4 h-4 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <p class="text-xs font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-300">Resolution</p>
+          </div>
+          <p id="drawer-resolution-text" class="text-sm text-emerald-950 dark:text-emerald-100 whitespace-pre-wrap leading-relaxed"></p>
+        </div>
+
+        <!-- Update Ticket Panel (ONLY agent & admin; hidden for end_user) -->
+        <div id="drawer-update-section" class="border border-[#E2E8F0] dark:border-[#27272A] rounded-2xl overflow-hidden bg-white dark:bg-[#18181B]">
+          <div class="px-4 py-3 bg-[#F8FAFC] dark:bg-[#18181B] border-b border-[#E2E8F0] dark:border-[#27272A] flex items-center justify-between">
+            <span class="text-xs font-bold text-[#0F172A] dark:text-[#F4F4F5] inline-flex items-center gap-2">
+              <svg class="w-4 h-4 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+              Update Ticket
+            </span>
+            <button id="toggle-update-panel-btn" type="button" onclick="toggleUpdatePanel()" class="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline">
+              Hide
+            </button>
+          </div>
+
+          <form id="update-ticket-form" class="p-4 space-y-3.5">
+            <div id="update-ticket-error" class="hidden p-3 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800/70 text-xs text-rose-700 dark:text-rose-300"></div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label for="edit-ticket-state" class="block text-xs font-semibold text-[#0F172A] dark:text-[#E4E4E7] mb-1">State</label>
+                <select id="edit-ticket-state"
+                  class="w-full rounded-xl border border-[#E2E8F0] dark:border-[#27272A] bg-white dark:bg-[#111114] px-3 py-2 text-sm text-[#0F172A] dark:text-[#F4F4F5] focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500">
+                  <option value="new">New</option>
+                  <option value="in_progress">In Progress</option>
+                  <option value="on_hold">On Hold</option>
+                  <option value="resolved">Resolved</option>
+                  <option value="closed">Closed</option>
+                  <option value="cancelled">Cancelled</option>
+                </select>
+              </div>
+              <div>
+                <label for="edit-ticket-priority" class="block text-xs font-semibold text-[#0F172A] dark:text-[#E4E4E7] mb-1">Priority</label>
+                <select id="edit-ticket-priority"
+                  class="w-full rounded-xl border border-[#E2E8F0] dark:border-[#27272A] bg-white dark:bg-[#111114] px-3 py-2 text-sm text-[#0F172A] dark:text-[#F4F4F5] focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500">
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                  <option value="critical">Critical</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <div class="flex items-center justify-between mb-1">
+                <label for="edit-ticket-assignee" class="text-xs font-semibold text-[#0F172A] dark:text-[#E4E4E7]">Assignee ID <span class="text-slate-400 font-normal">(UUID, optional)</span></label>
+                <button type="button" onclick="assignTicketToMe()" class="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:underline">Assign to me</button>
+              </div>
+              <input id="edit-ticket-assignee" type="text" placeholder="Leave blank to keep unchanged"
+                class="w-full rounded-xl border border-[#E2E8F0] dark:border-[#27272A] bg-white dark:bg-[#111114] px-3 py-2 text-xs font-mono text-[#0F172A] dark:text-[#F4F4F5] focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" />
+            </div>
+
+            <div>
+              <label for="edit-ticket-resolution" class="block text-xs font-semibold text-[#0F172A] dark:text-[#E4E4E7] mb-1">Resolution <span class="text-slate-400 font-normal">(1–5000 chars if provided)</span></label>
+              <textarea id="edit-ticket-resolution" rows="2" maxlength="5000" placeholder="Document how the issue was resolved..."
+                class="w-full rounded-xl border border-[#E2E8F0] dark:border-[#27272A] bg-white dark:bg-[#111114] px-3 py-2 text-sm text-[#0F172A] dark:text-[#F4F4F5] focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 resize-y"></textarea>
+            </div>
+
+            <div class="flex justify-end pt-1">
+              <button id="update-ticket-submit-btn" type="submit"
+                class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#0F172A] dark:bg-zinc-100 hover:bg-slate-800 dark:hover:bg-white disabled:opacity-60 text-white dark:text-zinc-900 text-xs font-semibold transition">
+                Save Changes
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Activity Feed (Segmented Tabs: Timeline | Comments) -->
+        <div class="space-y-4">
+          <div class="flex items-center justify-between gap-2">
+            <div class="inline-flex items-center p-1 rounded-xl bg-slate-100 dark:bg-[#18181B] border border-[#E2E8F0] dark:border-[#27272A]">
+              <button id="tab-timeline-btn" type="button" onclick="switchActivityTab('timeline')"
+                class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition">
+                Timeline
+              </button>
+              <button id="tab-comments-btn" type="button" onclick="switchActivityTab('comments')"
+                class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition inline-flex items-center gap-1.5">
+                <span>Comments</span>
+                <span id="tab-comments-count" class="px-1.5 py-0.5 rounded-md text-[10px] font-mono bg-slate-200/80 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300">0</span>
+              </button>
+            </div>
+
+            <button type="button" onclick="refreshActiveTicketActivity()"
+              class="inline-flex items-center gap-1 text-xs font-medium text-[#475569] dark:text-[#A1A1AA] hover:text-indigo-600 dark:hover:text-indigo-400 transition">
+              <svg id="activity-refresh-icon" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+              Refresh
+            </button>
+          </div>
+
+          <div id="activity-timeline-panel"></div>
+          <div id="activity-comments-panel" class="hidden space-y-3"></div>
+        </div>
+
+        <!-- Add Comment Composer (POST /tickets/{ticket_id}/comments) -->
+        <div class="border-t border-[#E2E8F0] dark:border-[#27272A] pt-5">
+          <form id="add-comment-form" class="space-y-3">
+            <div class="flex items-center justify-between flex-wrap gap-2">
+              <label for="comment-body" class="text-xs font-bold text-[#0F172A] dark:text-[#F4F4F5]">Add Comment</label>
+
+              <!-- Segmented Visibility Toggle (Agent/Admin) -->
+              <div id="comment-visibility-segmented" class="inline-flex items-center p-0.5 rounded-xl bg-slate-100 dark:bg-[#18181B] border border-[#E2E8F0] dark:border-[#27272A]">
+                <button id="vis-btn-public" type="button" onclick="setCommentVisibility('public')"
+                  class="px-2.5 py-1 rounded-lg text-[11px] font-semibold transition">
+                  Public
+                </button>
+                <button id="vis-btn-internal" type="button" onclick="setCommentVisibility('internal')"
+                  class="px-2.5 py-1 rounded-lg text-[11px] font-semibold transition">
+                  Internal Note
+                </button>
+              </div>
+
+              <!-- End-User Locked Label -->
+              <span id="comment-visibility-enduser-label" class="hidden inline-flex items-center gap-1.5 text-[11px] font-medium text-emerald-700 dark:text-emerald-400">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                Visible to support team
+              </span>
+            </div>
+
+            <div id="add-comment-error" class="hidden p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800/70 text-xs text-rose-700 dark:text-rose-300"></div>
+
+            <textarea id="comment-body" rows="3" required minlength="1" maxlength="5000"
+              placeholder="Write a reply..."
+              oninput="updateCommentCharCount()"
+              class="w-full rounded-xl border border-[#E2E8F0] dark:border-[#27272A] bg-[#F8FAFC] dark:bg-[#18181B] px-3.5 py-2.5 text-sm text-[#0F172A] dark:text-[#F4F4F5] placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus:bg-white dark:focus:bg-[#111114] focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 resize-y transition"></textarea>
+
+            <div class="flex items-center justify-between">
+              <span id="comment-char-count" class="text-[11px] font-mono text-slate-400 dark:text-zinc-500">0 / 5000</span>
+              <button id="add-comment-btn" type="submit"
+                class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 disabled:opacity-60 text-white text-xs font-semibold shadow-sm shadow-indigo-500/20 transition">
+                Post Comment
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- APPLICATION JAVASCRIPT                                                -->
+  <!-- ===================================================================== -->
+  <script>
+    // =========================================================================
+    // 1. STATE & CONSTANTS
+    // =========================================================================
+    const STORAGE_KEYS = {
+      API_URL: 'helpdesk_api_base_url',
+      TOKEN: 'helpdesk_access_token',
+      THEME: 'helpdesk_theme',
+      TENANT_SLUG: 'helpdesk_last_tenant_slug',
+    };
+
+    const DEFAULT_API_URL = window.location.origin;
+const STORED_API_URL = localStorage.getItem(STORAGE_KEYS.API_URL);
+
+const currentHostIsLocal = ['localhost', '127.0.0.1']
+  .includes(window.location.hostname);
+
+const storedApiUrlIsLocal = (() => {
+  if (!STORED_API_URL) return false;
+
+  try {
+    return ['localhost', '127.0.0.1']
+      .includes(new URL(STORED_API_URL).hostname);
+  } catch {
+    return false;
+  }
+})();
+
+const INITIAL_API_URL =
+  STORED_API_URL && !(storedApiUrlIsLocal && !currentHostIsLocal)
+    ? STORED_API_URL.replace(/\/+$/, '')
+    : DEFAULT_API_URL;
+
+if (INITIAL_API_URL !== STORED_API_URL) {
+  localStorage.setItem(STORAGE_KEYS.API_URL, INITIAL_API_URL);
+}
+
+    const state = {
+      apiBaseUrl: INITIAL_API_URL,
+      token: localStorage.getItem(STORAGE_KEYS.TOKEN) || null,
+      tenantSlug: localStorage.getItem(STORAGE_KEYS.TENANT_SLUG) || '',
+      user: null, // MeOut: { id, email, role, tenant_id }
+      tickets: [], // TicketOut[]
+      activeTicket: null, // TicketOut
+      activeKpi: 'all', // 'all' | 'new' | 'in_progress' | 'on_hold' | 'resolved_closed'
+      activeTab: 'timeline', // 'timeline' | 'comments'
+      currentView: 'tickets', // 'tickets' | 'ai' | 'users'
+      updatePanelOpen: true,
+      commentVisibility: 'public', // 'public' | 'internal'
+      aiMessages: [],
+      aiLoading: false,
+      detectedTenantSlug: null,
+    };
+
+    const AI_STARTER_PROMPTS = [
+      {
+        title: 'Reset Outlook password',
+        question: 'How do I reset my Outlook password?',
+      },
+      {
+        title: 'Wi-Fi router signal drops',
+        question: 'Why is my Wi-Fi router dropping signal?',
+      },
+      {
+        title: 'Laptop will not start',
+        question: 'What should I do if my laptop won\'t start?',
+      },
+      {
+        title: 'Troubleshoot slow laptop',
+        question: 'How do I troubleshoot a slow laptop?',
+      },
+    ];
+
+    // =========================================================================
+    // 2. THEME MANAGEMENT (Light / Dark Mode)
+    // =========================================================================
+    function syncThemeIcons() {
+      const isDark = document.documentElement.classList.contains('dark');
+      document.querySelectorAll('.theme-icon-sun').forEach((el) => el.classList.toggle('hidden', !isDark));
+      document.querySelectorAll('.theme-icon-moon').forEach((el) => el.classList.toggle('hidden', isDark));
+      document.querySelectorAll('.theme-label').forEach((el) => {
+        el.textContent = isDark ? 'Light mode' : 'Dark mode';
+      });
+    }
+
+    function toggleTheme() {
+      const isDark = document.documentElement.classList.toggle('dark');
+      try {
+        localStorage.setItem(STORAGE_KEYS.THEME, isDark ? 'dark' : 'light');
+      } catch (e) {}
+      syncThemeIcons();
+    }
+
+    // =========================================================================
+    // 3. UTILITY HELPERS (XSS Escape, Dates, Clipboard, Toasts, Spinners)
+    // =========================================================================
+    function escapeHtml(value) {
+      if (value === null || value === undefined) return '';
+      return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function formatDateTime(iso) {
+      if (!iso) return '—';
+      const d = new Date(iso);
+      if (isNaN(d.getTime())) return iso;
+      return d.toLocaleString(undefined, {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    }
+
+    function formatShortDate(iso) {
+      if (!iso) return '—';
+      const d = new Date(iso);
+      if (isNaN(d.getTime())) return iso;
+      return d.toLocaleString(undefined, {
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    }
+
+    function copyToClipboard(text, successMsg = 'Copied to clipboard') {
+      if (!text) return;
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.setAttribute('readonly', '');
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        ta.style.left = '-9999px';
+        document.body.appendChild(ta);
+        ta.select();
+        const ok = document.execCommand('copy');
+        document.body.removeChild(ta);
+        if (ok) {
+          showToast(successMsg, 'success');
+          return;
+        }
+      } catch (e) {}
+
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text)
+          .then(() => showToast(successMsg, 'success'))
+          .catch(() => showToast('Could not copy to clipboard', 'error'));
+      } else {
+        showToast('Could not copy to clipboard', 'error');
+      }
+    }
+
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toast-container');
+      const styles = {
+        success: 'bg-emerald-600 text-white border-emerald-500',
+        error: 'bg-rose-600 text-white border-rose-500',
+        warning: 'bg-amber-600 text-white border-amber-500',
+        info: 'bg-[#0F172A] dark:bg-zinc-100 text-white dark:text-zinc-900 border-slate-700 dark:border-zinc-300',
+      };
+      const icons = {
+        success: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />',
+        error: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />',
+        warning: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />',
+        info: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />',
+      };
+
+      const toast = document.createElement('div');
+      toast.className = `toast-enter pointer-events-auto flex items-start gap-2.5 px-4 py-3 rounded-xl border shadow-popover text-xs font-medium ${styles[type] || styles.info}`;
+      toast.innerHTML = `
+        <svg class="w-4 h-4 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">${icons[type] || icons.info}</svg>
+        <span class="flex-1 leading-relaxed">${escapeHtml(message)}</span>
+      `;
+      container.appendChild(toast);
+
+      setTimeout(() => {
+        toast.style.transition = 'opacity 200ms ease, transform 200ms ease';
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(6px)';
+        setTimeout(() => toast.remove(), 220);
+      }, 3600);
+    }
+
+    function setButtonLoading(btn, isLoading, loadingText = 'Working...') {
+      if (!btn) return;
+      if (isLoading) {
+        if (!btn.dataset.originalHtml) btn.dataset.originalHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = `
+          <svg class="w-4 h-4 animate-spin shrink-0" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+          </svg>
+          <span>${escapeHtml(loadingText)}</span>
+        `;
+      } else {
+        btn.disabled = false;
+        if (btn.dataset.originalHtml) btn.innerHTML = btn.dataset.originalHtml;
+      }
+    }
+
+    function togglePasswordVisibility(inputId) {
+      const input = document.getElementById(inputId);
+      if (input) input.type = input.type === 'password' ? 'text' : 'password';
+    }
+
+    function showCorsBanner() {
+      document.getElementById('cors-banner-url').textContent = state.apiBaseUrl;
+      document.getElementById('cors-banner').classList.remove('hidden');
+    }
+
+    function hideCorsBanner() {
+      document.getElementById('cors-banner').classList.add('hidden');
+    }
+
+    function copyCorsSnippet() {
+      const snippet = `from fastapi.middleware.cors import CORSMiddleware\n\napp.add_middleware(\n    CORSMiddleware,\n    allow_origins=["*"],\n    allow_credentials=False,\n    allow_methods=["*"],\n    allow_headers=["*"],\n)`;
+      copyToClipboard(snippet, 'FastAPI CORSMiddleware snippet copied!');
+    }
+
+    // =========================================================================
+    // 4. SEMANTIC BADGE RENDERERS
+    // =========================================================================
+    function renderStateBadge(stateVal) {
+      const map = {
+        new: { label: 'New', dot: 'bg-sky-500', pill: 'bg-sky-50 dark:bg-sky-500/15 text-sky-700 dark:text-sky-300 border-sky-200/80 dark:border-sky-500/30' },
+        in_progress: { label: 'In Progress', dot: 'bg-indigo-500', pill: 'bg-indigo-50 dark:bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border-indigo-200/80 dark:border-indigo-500/30' },
+        on_hold: { label: 'On Hold', dot: 'bg-amber-500', pill: 'bg-amber-50 dark:bg-amber-500/15 text-amber-800 dark:text-amber-300 border-amber-200/80 dark:border-amber-500/30' },
+        resolved: { label: 'Resolved', dot: 'bg-emerald-500', pill: 'bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-200/80 dark:border-emerald-500/30' },
+        closed: { label: 'Closed', dot: 'bg-slate-400', pill: 'bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 border-slate-200 dark:border-zinc-700' },
+        cancelled: { label: 'Cancelled', dot: 'bg-rose-500', pill: 'bg-rose-50 dark:bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-200/80 dark:border-rose-500/30' },
+      };
+      const cfg = map[stateVal] || { label: stateVal || 'Unknown', dot: 'bg-slate-400', pill: 'bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 border-slate-200 dark:border-zinc-700' };
+      return `<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold border ${cfg.pill}"><span class="w-1.5 h-1.5 rounded-full ${cfg.dot}"></span>${escapeHtml(cfg.label)}</span>`;
+    }
+
+    function renderPriorityBadge(priorityVal) {
+      const map = {
+        critical: { label: 'Critical', dot: 'bg-rose-500', pill: 'bg-rose-50 dark:bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-200/80 dark:border-rose-500/30' },
+        high: { label: 'High', dot: 'bg-amber-500', pill: 'bg-amber-50 dark:bg-amber-500/15 text-amber-800 dark:text-amber-300 border-amber-200/80 dark:border-amber-500/30' },
+        medium: { label: 'Medium', dot: 'bg-sky-500', pill: 'bg-sky-50 dark:bg-sky-500/15 text-sky-700 dark:text-sky-300 border-sky-200/80 dark:border-sky-500/30' },
+        low: { label: 'Low', dot: 'bg-slate-400', pill: 'bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 border-slate-200 dark:border-zinc-700' },
+      };
+      const cfg = map[priorityVal] || { label: priorityVal || 'Medium', dot: 'bg-slate-400', pill: 'bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 border-slate-200 dark:border-zinc-700' };
+      return `<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-semibold border ${cfg.pill}"><span class="w-1.5 h-1.5 rounded-full ${cfg.dot}"></span>${escapeHtml(cfg.label)}</span>`;
+    }
+
+    function renderRoleBadge(role) {
+      const map = {
+        admin: 'bg-violet-50 dark:bg-violet-500/15 text-violet-700 dark:text-violet-300 border-violet-200/80 dark:border-violet-500/30',
+        agent: 'bg-indigo-50 dark:bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border-indigo-200/80 dark:border-indigo-500/30',
+        end_user: 'bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 border-slate-200 dark:border-zinc-700',
+      };
+      const labels = { admin: 'ADMIN', agent: 'AGENT', end_user: 'END USER' };
+      return `<span class="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold tracking-wider border ${map[role] || map.end_user}">${escapeHtml(labels[role] || role)}</span>`;
+    }
+
+    function renderVisibilityBadge(vis) {
+      if (vis === 'internal') {
+        return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-amber-100/90 dark:bg-amber-500/20 text-amber-800 dark:text-amber-300 border border-amber-300/80 dark:border-amber-500/30">
+          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+          Internal Note
+        </span>`;
+      }
+      return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-500/30">
+        Public
+      </span>`;
+    }
+
+    // =========================================================================
+    // 5. FASTAPI CLIENT & ERROR PARSER
+    // =========================================================================
+    function parseFastApiError(data, status) {
+      if (data && data.detail !== undefined) {
+        if (typeof data.detail === 'string') return data.detail;
+        if (Array.isArray(data.detail)) {
+          return data.detail
+            .map((err) => {
+              const field = Array.isArray(err.loc) ? err.loc.filter((l) => l !== 'body').join('.') : '';
+              return field ? `${field}: ${err.msg}` : err.msg;
+            })
+            .join(' • ');
+        }
+        return JSON.stringify(data.detail);
+      }
+      if (status === 401) return 'Unauthorized — please sign in again.';
+      if (status === 403) return 'Forbidden — your role does not have permission for this action.';
+      if (status === 404) return 'Requested resource was not found.';
+      return `Request failed with HTTP ${status}.`;
+    }
+
+    async function apiRequest(path, { method = 'GET', body = null, auth = true } = {}) {
+      const headers = { Accept: 'application/json' };
+      if (body !== null) headers['Content-Type'] = 'application/json';
+      if (auth && state.token) headers['Authorization'] = `Bearer ${state.token}`;
+
+      let response;
+      try {
+        response = await fetch(`${state.apiBaseUrl}${path}`, {
+          method,
+          headers,
+          body: body !== null ? JSON.stringify(body) : undefined,
+        });
+      } catch (networkErr) {
+        showCorsBanner();
+        throw new Error(`Network error reaching ${state.apiBaseUrl}${path}. Check CORS or if FastAPI is running.`);
+      }
+
+      hideCorsBanner();
+
+      let data = null;
+      const contentType = response.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        try {
+          data = await response.json();
+        } catch (e) {}
+      }
+
+      if (!response.ok) {
+        const message = parseFastApiError(data, response.status);
+        if (response.status === 401 && auth) {
+          showToast('Session expired (401). Please sign in again.', 'warning');
+          logout(true);
+        }
+        const err = new Error(message);
+        err.status = response.status;
+        err.data = data;
+        throw err;
+      }
+
+      return data;
+    }
+
+    // =========================================================================
+    // 6. API BASE URL & HEALTH / DB CHECKS (res.ok 200–299)
+    // =========================================================================
+    function syncApiUrlDisplays() {
+      document.getElementById('login-api-url-input').value = state.apiBaseUrl;
+      document.getElementById('login-current-url-label').textContent = state.apiBaseUrl;
+      document.getElementById('nav-api-url-display').textContent = state.apiBaseUrl;
+      document.getElementById('modal-api-url-input').value = state.apiBaseUrl;
+    }
+
+    function updateApiBaseUrl(rawUrl) {
+      const cleaned = (rawUrl || '').trim().replace(/\/+$/, '');
+      if (!cleaned || !/^https?:\/\/.+/i.test(cleaned)) {
+        showToast('Enter a valid URL starting with http:// or https://', 'error');
+        return false;
+      }
+      state.apiBaseUrl = cleaned;
+      localStorage.setItem(STORAGE_KEYS.API_URL, cleaned);
+      syncApiUrlDisplays();
+      hideCorsBanner();
+      showToast(`API Base URL set to ${cleaned}`, 'success');
+      checkHealth();
+      return true;
+    }
+
+    function saveApiUrlFromLogin() {
+      updateApiBaseUrl(document.getElementById('login-api-url-input').value);
+    }
+
+    function openApiUrlModal() {
+      document.getElementById('modal-api-url-input').value = state.apiBaseUrl;
+      document.getElementById('api-url-modal').classList.remove('hidden');
+      setTimeout(() => document.getElementById('modal-api-url-input').focus(), 40);
+    }
+
+    function closeApiUrlModal() {
+      document.getElementById('api-url-modal').classList.add('hidden');
+    }
+
+    function saveApiUrlFromModal() {
+      if (updateApiBaseUrl(document.getElementById('modal-api-url-input').value)) {
+        closeApiUrlModal();
+      }
+    }
+
+    function renderStatusDot(el, label, ok) {
+      if (!el) return;
+      if (ok === null) {
+        el.innerHTML = `<span class="w-2 h-2 rounded-full bg-slate-400"></span>${label}`;
+        return;
+      }
+      if (ok) {
+        el.innerHTML = `<span class="relative flex h-2 w-2"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span></span>${label}`;
+      } else {
+        el.innerHTML = `<span class="w-2 h-2 rounded-full bg-rose-500"></span>${label}`;
+      }
+    }
+
+    async function checkHealth() {
+      document.querySelectorAll('.health-refresh-icon').forEach((el) => el.classList.add('animate-spin'));
+
+      const checkEndpoint = async (path) => {
+        try {
+          const res = await fetch(`${state.apiBaseUrl}${path}`, {
+            method: 'GET',
+            headers: { Accept: 'application/json' },
+          });
+          return res.ok; // Strictly evaluate 200-299
+        } catch (e) {
+          return false;
+        }
+      };
+
+      const [apiOk, dbOk] = await Promise.all([checkEndpoint('/health'), checkEndpoint('/db-check')]);
+
+      renderStatusDot(document.getElementById('login-health-pill'), 'API', apiOk);
+      renderStatusDot(document.getElementById('login-db-pill'), 'DB', dbOk);
+      renderStatusDot(document.getElementById('nav-health-pill'), 'API', apiOk);
+      renderStatusDot(document.getElementById('nav-db-pill'), 'DB', dbOk);
+
+      setTimeout(() => {
+        document.querySelectorAll('.health-refresh-icon').forEach((el) => el.classList.remove('animate-spin'));
+      }, 280);
+    }
+
+    // =========================================================================
+    // 7. AUTHENTICATION, URL TENANT AUTO-DETECT & SIDEBAR DRAWER
+    // =========================================================================
+    function detectTenantSlugFromUrl() {
+      let slug = null;
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const querySlug = (params.get('tenant') || '').trim();
+        if (querySlug) {
+          slug = querySlug;
+        } else {
+          const host = (window.location.hostname || '').toLowerCase();
+          const isIp = /^\d{1,3}(\.\d{1,3}){3}$/.test(host);
+          if (!isIp && host.endsWith('.localhost')) {
+            const sub = host.slice(0, -'.localhost'.length);
+            if (sub && sub !== 'www') slug = sub;
+          } else if (
+  !isIp &&
+  !host.endsWith('.onrender.com') &&
+  host.split('.').length >= 3
+) {
+            const sub = host.split('.')[0];
+            if (sub && sub !== 'www') slug = sub;
+          }
+        }
+      } catch (e) {
+        slug = null;
+      }
+
+      state.detectedTenantSlug = slug;
+      const pillContainer = document.getElementById('tenant-pill-container');
+      const inputContainer = document.getElementById('tenant-input-container');
+      const pillSlug = document.getElementById('tenant-pill-slug');
+      const input = document.getElementById('login-tenant');
+
+      if (slug) {
+        pillSlug.textContent = slug;
+        input.value = slug;
+        pillContainer.classList.remove('hidden');
+        inputContainer.classList.add('hidden');
+      } else {
+        pillContainer.classList.add('hidden');
+        inputContainer.classList.remove('hidden');
+        if (state.tenantSlug && !input.value) {
+          input.value = state.tenantSlug;
+        }
+      }
+    }
+
+    function unlockTenantSlugInput() {
+      document.getElementById('tenant-pill-container').classList.add('hidden');
+      document.getElementById('tenant-input-container').classList.remove('hidden');
+      const input = document.getElementById('login-tenant');
+      input.focus();
+      input.select();
+    }
+
+    function openMobileSidebar() {
+      document.getElementById('mobile-sidebar-backdrop').classList.remove('hidden');
+      document.getElementById('app-sidebar').classList.remove('-translate-x-full');
+    }
+
+    function closeMobileSidebar() {
+      document.getElementById('mobile-sidebar-backdrop').classList.add('hidden');
+      document.getElementById('app-sidebar').classList.add('-translate-x-full');
+    }
+
+    function closeProfilePopover() {
+      document.getElementById('profile-popover').classList.add('hidden');
+      document.getElementById('profile-menu-btn').setAttribute('aria-expanded', 'false');
+    }
+
+    function showLoginView() {
+      document.getElementById('app-shell').classList.add('hidden');
+      document.getElementById('login-view').classList.remove('hidden');
+    }
+
+    function showAppShell() {
+      document.getElementById('login-view').classList.add('hidden');
+      document.getElementById('app-shell').classList.remove('hidden');
+    }
+
+    function renderUserProfile(me) {
+      const initials = (me.email || 'U').slice(0, 2).toUpperCase();
+      document.getElementById('header-avatar').textContent = initials;
+      document.getElementById('header-user-email').textContent = me.email || '--';
+      document.getElementById('header-user-role').textContent = (me.role || '').replace('_', ' ');
+
+      document.getElementById('profile-email').textContent = me.email || '--';
+      document.getElementById('profile-role-container').innerHTML = renderRoleBadge(me.role);
+      document.getElementById('profile-user-id').textContent = me.id || '--';
+      document.getElementById('profile-tenant-id').textContent = me.tenant_id || '--';
+
+      // Active tenant slug badge in sidebar
+      const slugLabel = state.detectedTenantSlug || state.tenantSlug || (me.tenant_id ? me.tenant_id.slice(0, 8) : 'workspace');
+      document.getElementById('sidebar-tenant-badge').textContent = slugLabel;
+
+      // Auto-fill tenant_id in Create User form
+      document.getElementById('user-tenant-id').value = me.tenant_id || '';
+
+      // Role-aware copy & nav
+      const isEndUser = me.role === 'end_user';
+      document.getElementById('tickets-page-title').textContent = isEndUser ? 'My Tickets' : 'Tickets';
+      document.getElementById('tickets-page-subtitle').textContent = isEndUser
+        ? 'Track the progress of your submitted support requests.'
+        : 'Track, triage, and resolve support requests across your workspace.';
+
+      const navUsersBtn = document.getElementById('nav-users-btn');
+      if (isEndUser) {
+        navUsersBtn.classList.add('hidden');
+        if (state.currentView === 'users') switchView('tickets');
+      } else {
+        navUsersBtn.classList.remove('hidden');
+      }
+
+      const rbacNotice = document.getElementById('users-rbac-notice');
+      if (me.role !== 'admin') {
+        document.getElementById('users-current-role').textContent = me.role;
+        rbacNotice.classList.remove('hidden');
+      } else {
+        rbacNotice.classList.add('hidden');
+      }
+    }
+
+    function copyCurrentUserId() {
+      if (state.user?.id) copyToClipboard(state.user.id, 'User UUID copied!');
+    }
+
+    function copyCurrentTenantId() {
+      if (state.user?.tenant_id) copyToClipboard(state.user.tenant_id, 'Tenant UUID copied!');
+    }
+
+    async function handleLoginSubmit(e) {
+      e.preventDefault();
+      const errBox = document.getElementById('login-error');
+      errBox.classList.add('hidden');
+
+      const tenant_slug = document.getElementById('login-tenant').value.trim();
+      const email = document.getElementById('login-email').value.trim();
+      const password = document.getElementById('login-password').value;
+
+      const btn = document.getElementById('login-submit-btn');
+      setButtonLoading(btn, true, 'Signing in...');
+
+      try {
+        const tokenRes = await apiRequest('/auth/login', {
+          method: 'POST',
+          auth: false,
+          body: { tenant_slug, email, password },
+        });
+
+        state.token = tokenRes.access_token;
+        state.tenantSlug = tenant_slug;
+        localStorage.setItem(STORAGE_KEYS.TOKEN, state.token);
+        localStorage.setItem(STORAGE_KEYS.TENANT_SLUG, tenant_slug);
+
+        await bootstrapAuthenticatedApp();
+        showToast('Signed in successfully!', 'success');
+      } catch (err) {
+        errBox.textContent = err.message;
+        errBox.classList.remove('hidden');
+      } finally {
+        setButtonLoading(btn, false);
+      }
+    }
+
+    async function bootstrapAuthenticatedApp() {
+      const me = await apiRequest('/auth/me');
+      state.user = me;
+      renderUserProfile(me);
+      showAppShell();
+      switchView('tickets');
+      checkHealth();
+      await loadTickets();
+    }
+
+    function logout(silent = false) {
+      localStorage.removeItem(STORAGE_KEYS.TOKEN);
+      state.token = null;
+      state.user = null;
+      state.tickets = [];
+      state.activeTicket = null;
+      state.aiMessages = [];
+      state.aiLoading = false;
+      state.currentView = 'tickets';
+
+      document.getElementById('tickets-tbody').innerHTML = '';
+      document.getElementById('login-password').value = '';
+      document.getElementById('login-error').classList.add('hidden');
+      renderAiChatFeed();
+
+      closeProfilePopover();
+      closeMobileSidebar();
+      closeCreateTicketModal();
+      closeApiUrlModal();
+      closeTicketDrawer();
+      showLoginView();
+      detectTenantSlugFromUrl();
+      checkHealth();
+
+      if (!silent) showToast('Signed out successfully.', 'info');
+    }
+
+    // =========================================================================
+    // 8. NAVIGATION
+    // =========================================================================
+    function switchView(viewName) {
+      if (viewName === 'users' && state.user?.role === 'end_user') {
+        viewName = 'tickets';
+      }
+      state.currentView = viewName;
+
+      const sections = {
+        tickets: document.getElementById('view-tickets'),
+        ai: document.getElementById('view-ai'),
+        users: document.getElementById('view-users'),
+      };
+      const buttons = {
+        tickets: document.getElementById('nav-tickets-btn'),
+        ai: document.getElementById('nav-ai-btn'),
+        users: document.getElementById('nav-users-btn'),
+      };
+
+      const activeCls = 'bg-indigo-50/90 dark:bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 font-semibold';
+      const inactiveCls = 'text-[#475569] dark:text-[#A1A1AA] hover:bg-slate-100 dark:hover:bg-zinc-800/70 hover:text-[#0F172A] dark:hover:text-[#F4F4F5]';
+
+      Object.keys(sections).forEach((key) => {
+        const isCurrent = key === viewName;
+        if (sections[key]) sections[key].classList.toggle('hidden', !isCurrent);
+        if (buttons[key]) {
+          const isHidden = key === 'users' && state.user?.role === 'end_user';
+          buttons[key].className = `${isHidden ? 'hidden' : 'flex'} w-full items-center justify-between gap-2.5 px-3 py-2 rounded-xl text-sm transition ${isCurrent ? activeCls : inactiveCls}`;
+        }
+      });
+
+      if (viewName === 'ai') {
+        renderAiChatFeed();
+        setTimeout(() => document.getElementById('ai-question-input')?.focus(), 60);
+      }
+    }
+
+    // =========================================================================
+    // 9. TICKETS WORKSPACE, CLICKABLE KPIs & DIRECT LOOKUP
+    // =========================================================================
+    function updateTicketStats() {
+      const list = state.tickets;
+      const counts = {
+        total: list.length,
+        new: 0,
+        in_progress: 0,
+        on_hold: 0,
+        resolved_closed: 0,
+      };
+      for (const t of list) {
+        if (t.state === 'new') counts.new++;
+        else if (t.state === 'in_progress') counts.in_progress++;
+        else if (t.state === 'on_hold') counts.on_hold++;
+        else if (t.state === 'resolved' || t.state === 'closed') counts.resolved_closed++;
+      }
+      document.getElementById('stat-total').textContent = counts.total;
+      document.getElementById('stat-new').textContent = counts.new;
+      document.getElementById('stat-in-progress').textContent = counts.in_progress;
+      document.getElementById('stat-on-hold').textContent = counts.on_hold;
+      document.getElementById('stat-resolved').textContent = counts.resolved_closed;
+      document.getElementById('nav-ticket-count').textContent = counts.total;
+    }
+
+    function syncKpiActiveHighlight() {
+      const currentStateFilter = document.getElementById('filter-state').value;
+      document.querySelectorAll('.kpi-card').forEach((card) => {
+        const key = card.dataset.kpi;
+        const isActive = key === currentStateFilter;
+        card.classList.toggle('ring-2', isActive);
+        card.classList.toggle('ring-indigo-500', isActive);
+        card.classList.toggle('border-indigo-500', isActive);
+      });
+    }
+
+    function filterByKpi(kpiKey) {
+      const select = document.getElementById('filter-state');
+      // Clicking active KPI toggles back to 'all'
+      select.value = select.value === kpiKey && kpiKey !== 'all' ? 'all' : kpiKey;
+      syncKpiActiveHighlight();
+      renderTicketsList();
+    }
+
+    function onStateSelectChange() {
+      syncKpiActiveHighlight();
+      renderTicketsList();
+    }
+
+    async function loadTickets() {
+      const loadingEl = document.getElementById('tickets-loading');
+      const tableWrap = document.getElementById('tickets-table-wrapper');
+      const emptyEl = document.getElementById('tickets-empty');
+      const refreshIcon = document.getElementById('tickets-refresh-icon');
+
+      refreshIcon.classList.add('animate-spin');
+      if (state.tickets.length === 0) {
+        loadingEl.classList.remove('hidden');
+        tableWrap.classList.add('hidden');
+        emptyEl.classList.add('hidden');
+      }
+
+      try {
+        const tickets = await apiRequest('/tickets');
+        state.tickets = Array.isArray(tickets) ? tickets : [];
+        updateTicketStats();
+        syncKpiActiveHighlight();
+        renderTicketsList();
+      } catch (err) {
+        showToast(err.message, 'error');
+      } finally {
+        loadingEl.classList.add('hidden');
+        setTimeout(() => refreshIcon.classList.remove('animate-spin'), 250);
+      }
+    }
+
+    function renderTicketsList() {
+      const query = (document.getElementById('filter-search').value || '').trim().toLowerCase();
+      const stateFilter = document.getElementById('filter-state').value;
+      const priorityFilter = document.getElementById('filter-priority').value;
+
+      const filtered = state.tickets.filter((t) => {
+        if (stateFilter === 'resolved_closed') {
+          if (t.state !== 'resolved' && t.state !== 'closed') return false;
+        } else if (stateFilter !== 'all' && t.state !== stateFilter) {
+          return false;
+        }
+        if (priorityFilter !== 'all' && t.priority !== priorityFilter) return false;
+        if (query) {
+          const hay = `${t.ticket_number} ${t.title} ${t.description || ''}`.toLowerCase();
+          if (!hay.includes(query)) return false;
+        }
+        return true;
+      });
+
+      const tbody = document.getElementById('tickets-tbody');
+      const tableWrap = document.getElementById('tickets-table-wrapper');
+      const emptyEl = document.getElementById('tickets-empty');
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = '';
+        tableWrap.classList.add('hidden');
+        emptyEl.classList.remove('hidden');
+        return;
+      }
+
+      emptyEl.classList.add('hidden');
+      tableWrap.classList.remove('hidden');
+
+      tbody.innerHTML = filtered
+        .map((t) => {
+          const isSelected = state.activeTicket && state.activeTicket.id === t.id;
+          const rowBg = isSelected
+            ? 'bg-indigo-50/70 dark:bg-indigo-500/10'
+            : 'hover:bg-slate-50/90 dark:hover:bg-zinc-800/50';
+          return `
+            <tr onclick="openTicketById('${escapeHtml(t.id)}')" class="group cursor-pointer transition ${rowBg}">
+              <td class="py-3.5 px-4 align-middle whitespace-nowrap">
+                <span class="font-mono text-xs font-semibold px-2 py-1 rounded-lg bg-slate-100 dark:bg-zinc-800 text-[#0F172A] dark:text-zinc-200 border border-[#E2E8F0] dark:border-zinc-700">
+                  ${escapeHtml(t.ticket_number)}
+                </span>
+              </td>
+              <td class="py-3.5 px-4 align-middle max-w-md">
+                <div class="font-semibold text-[#0F172A] dark:text-[#F4F4F5] truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition">
+                  ${escapeHtml(t.title)}
+                </div>
+                ${t.description ? `<div class="text-xs text-[#475569] dark:text-[#A1A1AA] truncate mt-0.5">${escapeHtml(t.description)}</div>` : ''}
+              </td>
+              <td class="py-3.5 px-4 align-middle whitespace-nowrap">${renderStateBadge(t.state)}</td>
+              <td class="py-3.5 px-4 align-middle whitespace-nowrap">${renderPriorityBadge(t.priority)}</td>
+              <td class="py-3.5 px-4 align-middle whitespace-nowrap text-xs text-[#475569] dark:text-[#A1A1AA]">${escapeHtml(formatShortDate(t.created_at))}</td>
+              <td class="py-3.5 px-3 align-middle text-right">
+                <svg class="w-4 h-4 text-slate-300 dark:text-zinc-600 group-hover:text-indigo-500 group-hover:translate-x-0.5 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                </svg>
+              </td>
+            </tr>
+          `;
+        })
+        .join('');
+    }
+
+    async function handleTicketLookup(e) {
+      e.preventDefault();
+      const input = document.getElementById('lookup-ticket-number');
+      const ticketNumber = input.value.trim();
+      if (!ticketNumber) return;
+
+      const btn = document.getElementById('lookup-ticket-btn');
+      setButtonLoading(btn, true, '...');
+      try {
+        const ticket = await apiRequest(`/tickets/${encodeURIComponent(ticketNumber)}`);
+        openTicketDrawer(ticket);
+        input.value = '';
+      } catch (err) {
+        showToast(err.message, 'error');
+      } finally {
+        setButtonLoading(btn, false);
+      }
+    }
+
+    // =========================================================================
+    // 10. CREATE TICKET MODAL (POST /tickets — additionalProperties: false)
+    // =========================================================================
+    function openCreateTicketModal(prefill = null) {
+      document.getElementById('create-ticket-form').reset();
+      document.getElementById('create-ticket-error').classList.add('hidden');
+      if (prefill && typeof prefill === 'object') {
+        if (prefill.title) document.getElementById('new-ticket-title').value = prefill.title;
+        if (prefill.description) document.getElementById('new-ticket-description').value = prefill.description;
+        if (prefill.priority) document.getElementById('new-ticket-priority').value = prefill.priority;
+      }
+      document.getElementById('create-ticket-modal').classList.remove('hidden');
+      setTimeout(() => document.getElementById('new-ticket-title').focus(), 40);
+    }
+
+    function closeCreateTicketModal() {
+      document.getElementById('create-ticket-modal').classList.add('hidden');
+    }
+
+    async function handleCreateTicketSubmit(e) {
+      e.preventDefault();
+      const errBox = document.getElementById('create-ticket-error');
+      errBox.classList.add('hidden');
+
+      const title = document.getElementById('new-ticket-title').value.trim();
+      const rawDesc = document.getElementById('new-ticket-description').value.trim();
+      const priority = document.getElementById('new-ticket-priority').value || 'medium';
+
+      if (!title) {
+        errBox.textContent = 'Title is required.';
+        errBox.classList.remove('hidden');
+        return;
+      }
+
+      // Strictly matches TicketCreate (additionalProperties: false)
+      const payload = {
+        title,
+        description: rawDesc.length > 0 ? rawDesc : null,
+        priority,
+      };
+
+      const btn = document.getElementById('create-ticket-submit-btn');
+      setButtonLoading(btn, true, 'Creating...');
+
+      try {
+        const created = await apiRequest('/tickets', { method: 'POST', body: payload });
+        state.tickets.unshift(created);
+        updateTicketStats();
+        renderTicketsList();
+        closeCreateTicketModal();
+        showToast(`Ticket ${created.ticket_number} created!`, 'success');
+        switchView('tickets');
+        openTicketDrawer(created);
+      } catch (err) {
+        errBox.textContent = err.message;
+        errBox.classList.remove('hidden');
+      } finally {
+        setButtonLoading(btn, false);
+      }
+    }
+
+    // =========================================================================
+    // 11. TICKET DETAIL SLIDE-OVER DRAWER (PATCH /tickets/{ticket_id})
+    // =========================================================================
+    function openTicketById(ticketId) {
+      const ticket = state.tickets.find((t) => t.id === ticketId);
+      if (ticket) openTicketDrawer(ticket);
+    }
+
+    function setUpdatePanelOpen(isOpen) {
+      state.updatePanelOpen = isOpen;
+      document.getElementById('update-ticket-form').classList.toggle('hidden', !isOpen);
+      document.getElementById('toggle-update-panel-btn').textContent = isOpen ? 'Hide' : 'Expand';
+    }
+
+    function toggleUpdatePanel() {
+      setUpdatePanelOpen(!state.updatePanelOpen);
+    }
+
+    function setCommentVisibility(vis) {
+      state.commentVisibility = vis;
+      const pubBtn = document.getElementById('vis-btn-public');
+      const intBtn = document.getElementById('vis-btn-internal');
+      const activePub = 'bg-white dark:bg-zinc-800 text-emerald-700 dark:text-emerald-300 shadow-sm';
+      const activeInt = 'bg-amber-100 dark:bg-amber-500/20 text-amber-900 dark:text-amber-300 shadow-sm';
+      const inactive = 'text-[#475569] dark:text-[#A1A1AA] hover:text-[#0F172A] dark:hover:text-white';
+
+      pubBtn.className = `px-2.5 py-1 rounded-lg text-[11px] font-semibold transition ${vis === 'public' ? activePub : inactive}`;
+      intBtn.className = `px-2.5 py-1 rounded-lg text-[11px] font-semibold transition ${vis === 'internal' ? activeInt : inactive}`;
+
+      const textarea = document.getElementById('comment-body');
+      textarea.placeholder = vis === 'internal'
+        ? 'Write an internal staff note (hidden from end users)...'
+        : 'Write a public reply...';
+    }
+
+    function openTicketDrawer(ticket) {
+      state.activeTicket = ticket;
+      renderTicketsList();
+      renderDrawerDetails(ticket);
+
+      const isStaff = state.user && (state.user.role === 'agent' || state.user.role === 'admin');
+
+      const updateSection = document.getElementById('drawer-update-section');
+      if (isStaff) {
+        updateSection.classList.remove('hidden');
+        setUpdatePanelOpen(true);
+      } else {
+        updateSection.classList.add('hidden');
+        setUpdatePanelOpen(false);
+      }
+
+      const segWrap = document.getElementById('comment-visibility-segmented');
+      const endUserLbl = document.getElementById('comment-visibility-enduser-label');
+      if (isStaff) {
+        segWrap.classList.remove('hidden');
+        endUserLbl.classList.add('hidden');
+        setCommentVisibility('internal');
+      } else {
+        segWrap.classList.add('hidden');
+        endUserLbl.classList.remove('hidden');
+        setCommentVisibility('public');
+      }
+
+      const container = document.getElementById('ticket-drawer-container');
+      const panel = document.getElementById('ticket-drawer-panel');
+      container.classList.remove('hidden');
+      requestAnimationFrame(() => panel.classList.remove('translate-x-full'));
+
+      document.getElementById('add-comment-form').reset();
+      document.getElementById('add-comment-error').classList.add('hidden');
+      updateCommentCharCount();
+
+      switchActivityTab('timeline');
+      refreshActiveTicketActivity();
+    }
+
+    function closeTicketDrawer() {
+      const container = document.getElementById('ticket-drawer-container');
+      const panel = document.getElementById('ticket-drawer-panel');
+      if (container.classList.contains('hidden')) return;
+      panel.classList.add('translate-x-full');
+      setTimeout(() => {
+        container.classList.add('hidden');
+        state.activeTicket = null;
+        renderTicketsList();
+      }, 200);
+    }
+
+    function renderDrawerDetails(ticket) {
+      document.getElementById('drawer-ticket-number').textContent = ticket.ticket_number;
+      document.getElementById('drawer-ticket-id').textContent = ticket.id ? `${ticket.id.slice(0, 13)}…` : '--';
+      document.getElementById('drawer-state-badge').innerHTML = renderStateBadge(ticket.state);
+      document.getElementById('drawer-priority-badge').innerHTML = renderPriorityBadge(ticket.priority);
+      document.getElementById('drawer-title').textContent = ticket.title;
+
+      const descEl = document.getElementById('drawer-description');
+      if (ticket.description && ticket.description.trim()) {
+        descEl.textContent = ticket.description;
+        descEl.classList.remove('italic', 'text-slate-400', 'dark:text-zinc-500');
+      } else {
+        descEl.textContent = 'No description provided.';
+        descEl.classList.add('italic', 'text-slate-400', 'dark:text-zinc-500');
+      }
+
+      document.getElementById('drawer-created-at').textContent = formatShortDate(ticket.created_at);
+      document.getElementById('drawer-updated-at').textContent = formatShortDate(ticket.updated_at);
+      document.getElementById('drawer-resolved-at').textContent = formatShortDate(ticket.resolved_at);
+
+      const resBox = document.getElementById('drawer-resolution-box');
+      if (ticket.resolution) {
+        document.getElementById('drawer-resolution-text').textContent = ticket.resolution;
+        resBox.classList.remove('hidden');
+      } else {
+        resBox.classList.add('hidden');
+      }
+
+      document.getElementById('edit-ticket-state').value = ticket.state || 'new';
+      document.getElementById('edit-ticket-priority').value = ticket.priority || 'medium';
+      document.getElementById('edit-ticket-assignee').value = '';
+      document.getElementById('edit-ticket-resolution').value = ticket.resolution || '';
+      document.getElementById('update-ticket-error').classList.add('hidden');
+    }
+
+    function copyActiveTicketId() {
+      if (state.activeTicket?.id) copyToClipboard(state.activeTicket.id, 'Ticket UUID copied!');
+    }
+
+    function copyActiveTicketNumber() {
+      if (state.activeTicket?.ticket_number) copyToClipboard(state.activeTicket.ticket_number, 'Ticket number copied!');
+    }
+
+    function assignTicketToMe() {
+      if (state.user?.id) {
+        document.getElementById('edit-ticket-assignee').value = state.user.id;
+        showToast('Filled your User UUID as assignee.', 'info');
+      }
+    }
+
+    async function handleUpdateTicketSubmit(e) {
+      e.preventDefault();
+      if (!state.activeTicket) return;
+
+      const errBox = document.getElementById('update-ticket-error');
+      errBox.classList.add('hidden');
+
+      const newState = document.getElementById('edit-ticket-state').value;
+      const newPriority = document.getElementById('edit-ticket-priority').value;
+      const assigneeRaw = document.getElementById('edit-ticket-assignee').value.trim();
+      const resolutionRaw = document.getElementById('edit-ticket-resolution').value.trim();
+
+      // Build sparse PATCH payload (ONLY modified/non-empty fields)
+      const payload = {};
+      if (newState && newState !== state.activeTicket.state) payload.state = newState;
+      if (newPriority && newPriority !== state.activeTicket.priority) payload.priority = newPriority;
+      if (assigneeRaw.length > 0) payload.assignee_id = assigneeRaw;
+      if (resolutionRaw.length > 0 && resolutionRaw !== (state.activeTicket.resolution || '').trim()) {
+        payload.resolution = resolutionRaw;
+      }
+
+      if (Object.keys(payload).length === 0) {
+        showToast('No changes detected to save.', 'info');
+        return;
+      }
+
+      const btn = document.getElementById('update-ticket-submit-btn');
+      setButtonLoading(btn, true, 'Saving...');
+
+      try {
+        const updated = await apiRequest(`/tickets/${encodeURIComponent(state.activeTicket.id)}`, {
+          method: 'PATCH',
+          body: payload,
+        });
+
+        state.activeTicket = updated;
+        const idx = state.tickets.findIndex((t) => t.id === updated.id);
+        if (idx !== -1) state.tickets[idx] = updated;
+        else state.tickets.unshift(updated);
+
+        updateTicketStats();
+        renderTicketsList();
+        renderDrawerDetails(updated);
+        showToast(`Ticket ${updated.ticket_number} updated!`, 'success');
+        refreshActiveTicketActivity();
+      } catch (err) {
+        errBox.textContent = err.message;
+        errBox.classList.remove('hidden');
+      } finally {
+        setButtonLoading(btn, false);
+      }
+    }
+
+    // =========================================================================
+    // 12. ACTIVITY FEED: VERTICAL TIMELINE & COMMENTS
+    // =========================================================================
+    function switchActivityTab(tabName) {
+      state.activeTab = tabName;
+      const tBtn = document.getElementById('tab-timeline-btn');
+      const cBtn = document.getElementById('tab-comments-btn');
+      const tPanel = document.getElementById('activity-timeline-panel');
+      const cPanel = document.getElementById('activity-comments-panel');
+
+      const activeCls = 'bg-white dark:bg-zinc-800 text-[#0F172A] dark:text-[#F4F4F5] shadow-sm';
+      const inactiveCls = 'text-[#475569] dark:text-[#A1A1AA] hover:text-[#0F172A] dark:hover:text-white';
+
+      tBtn.className = `px-3.5 py-1.5 rounded-lg text-xs font-semibold transition ${tabName === 'timeline' ? activeCls : inactiveCls}`;
+      cBtn.className = `px-3.5 py-1.5 rounded-lg text-xs font-semibold transition inline-flex items-center gap-1.5 ${tabName === 'comments' ? activeCls : inactiveCls}`;
+
+      tPanel.classList.toggle('hidden', tabName !== 'timeline');
+      cPanel.classList.toggle('hidden', tabName !== 'comments');
+    }
+
+    async function refreshActiveTicketActivity() {
+      if (!state.activeTicket) return;
+      const ticketId = state.activeTicket.id;
+      const icon = document.getElementById('activity-refresh-icon');
+      icon.classList.add('animate-spin');
+
+      const timelinePanel = document.getElementById('activity-timeline-panel');
+      const commentsPanel = document.getElementById('activity-comments-panel');
+
+      const skeleton = `<div class="space-y-3 animate-pulse py-2"><div class="h-14 rounded-xl bg-slate-100 dark:bg-zinc-800/70"></div><div class="h-14 rounded-xl bg-slate-100 dark:bg-zinc-800/70"></div></div>`;
+      if (!timelinePanel.innerHTML.trim()) timelinePanel.innerHTML = skeleton;
+      if (!commentsPanel.innerHTML.trim()) commentsPanel.innerHTML = skeleton;
+
+      try {
+        const [timeline, comments] = await Promise.all([
+          apiRequest(`/tickets/${encodeURIComponent(ticketId)}/timeline`),
+          apiRequest(`/tickets/${encodeURIComponent(ticketId)}/comments`),
+        ]);
+        if (!state.activeTicket || state.activeTicket.id !== ticketId) return;
+        renderTimeline(Array.isArray(timeline) ? timeline : []);
+        renderComments(Array.isArray(comments) ? comments : []);
+      } catch (err) {
+        timelinePanel.innerHTML = `<div class="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800/70 text-xs text-rose-700 dark:text-rose-300">${escapeHtml(err.message)}</div>`;
+      } finally {
+        setTimeout(() => icon.classList.remove('animate-spin'), 250);
+      }
+    }
+
+    function renderTimeline(entries) {
+      const container = document.getElementById('activity-timeline-panel');
+      if (entries.length === 0) {
+        container.innerHTML = `<p class="text-xs text-[#475569] dark:text-[#A1A1AA] py-6 text-center bg-[#F8FAFC] dark:bg-[#18181B] rounded-xl border border-dashed border-[#E2E8F0] dark:border-[#27272A]">No timeline activity yet.</p>`;
+        return;
+      }
+
+      const itemsHtml = entries
+        .map((entry) => {
+          const actorName = entry.actor?.name || 'System';
+          const initials = actorName.slice(0, 2).toUpperCase();
+          const atText = formatShortDate(entry.at);
+
+          if (entry.kind === 'comment') {
+            const isInternal = entry.visibility === 'internal';
+            const cardCls = isInternal
+              ? 'border-amber-200 dark:border-amber-500/30 bg-amber-50/70 dark:bg-amber-950/25'
+              : 'border-[#E2E8F0] dark:border-[#27272A] bg-white dark:bg-[#18181B]';
+            const dotCls = isInternal
+              ? 'bg-amber-500 ring-amber-100 dark:ring-amber-950'
+              : 'bg-indigo-500 ring-indigo-100 dark:ring-indigo-950';
+
+            return `
+              <div class="relative pl-7 pb-5 last:pb-0">
+                <span class="absolute left-0 top-3.5 w-3 h-3 rounded-full ring-4 ${dotCls}"></span>
+                <div class="border rounded-2xl p-4 shadow-subtle ${cardCls}">
+                  <div class="flex items-center justify-between gap-2 flex-wrap mb-2">
+                    <div class="flex items-center gap-2">
+                      <div class="w-6 h-6 rounded-full text-[10px] font-bold flex items-center justify-center ${isInternal ? 'bg-amber-200 dark:bg-amber-500/30 text-amber-900 dark:text-amber-200' : 'bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300'}">
+                        ${escapeHtml(initials)}
+                      </div>
+                      <span class="text-xs font-semibold text-[#0F172A] dark:text-[#F4F4F5]">${escapeHtml(actorName)}</span>
+                      ${renderVisibilityBadge(entry.visibility)}
+                    </div>
+                    <span class="text-[11px] text-[#475569] dark:text-[#A1A1AA]">${escapeHtml(atText)}</span>
+                  </div>
+                  <p class="text-sm text-[#0F172A] dark:text-zinc-200 whitespace-pre-wrap leading-relaxed">${escapeHtml(entry.body || '')}</p>
+                </div>
+              </div>
+            `;
+          }
+
+          const hasDiff = entry.field || entry.old_value !== null || entry.new_value !== null;
+          return `
+            <div class="relative pl-7 pb-4 last:pb-0">
+              <span class="absolute left-[1px] top-1.5 w-2.5 h-2.5 rounded-full bg-slate-300 dark:bg-zinc-600 ring-4 ring-white dark:ring-[#111114]"></span>
+              <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs">
+                <div class="flex items-center flex-wrap gap-1.5 text-[#475569] dark:text-[#A1A1AA]">
+                  <span class="font-semibold text-[#0F172A] dark:text-[#F4F4F5]">${escapeHtml(actorName)}</span>
+                  <span class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 font-mono text-[10px]">${escapeHtml(entry.event_type || 'event')}</span>
+                  ${hasDiff ? `
+                    ${entry.field ? `<span class="font-medium text-[#0F172A] dark:text-zinc-300">${escapeHtml(entry.field)}</span>` : ''}
+                    ${entry.old_value ? `<span class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-zinc-800 line-through text-slate-500 dark:text-zinc-400 font-mono text-[11px]">${escapeHtml(entry.old_value)}</span>` : ''}
+                    ${entry.old_value && entry.new_value ? `<span class="text-slate-400">→</span>` : ''}
+                    ${entry.new_value ? `<span class="px-1.5 py-0.5 rounded bg-indigo-50 dark:bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 font-mono text-[11px] font-medium">${escapeHtml(entry.new_value)}</span>` : ''}
+                  ` : ''}
+                </div>
+                <span class="text-[11px] text-slate-400 dark:text-zinc-500 shrink-0">${escapeHtml(atText)}</span>
+              </div>
+            </div>
+          `;
+        })
+        .join('');
+
+      container.innerHTML = `
+        <div class="relative before:content-[''] before:absolute before:left-[5px] before:top-2 before:bottom-2 before:w-px before:bg-[#E2E8F0] dark:before:bg-[#27272A]">
+          ${itemsHtml}
+        </div>
+      `;
+    }
+
+    function renderComments(comments) {
+      document.getElementById('tab-comments-count').textContent = comments.length;
+      const container = document.getElementById('activity-comments-panel');
+
+      if (comments.length === 0) {
+        container.innerHTML = `<p class="text-xs text-[#475569] dark:text-[#A1A1AA] py-6 text-center bg-[#F8FAFC] dark:bg-[#18181B] rounded-xl border border-dashed border-[#E2E8F0] dark:border-[#27272A]">No comments posted yet.</p>`;
+        return;
+      }
+
+      container.innerHTML = comments
+        .map((c) => {
+          const isInternal = c.visibility === 'internal';
+          const cardCls = isInternal
+            ? 'border-amber-200 dark:border-amber-500/30 bg-amber-50/70 dark:bg-amber-950/25'
+            : 'border-[#E2E8F0] dark:border-[#27272A] bg-white dark:bg-[#18181B]';
+          return `
+            <div class="border rounded-2xl p-4 shadow-subtle ${cardCls}">
+              <div class="flex items-center justify-between gap-2 flex-wrap mb-2">
+                <div class="flex items-center gap-2">
+                  ${renderVisibilityBadge(c.visibility)}
+                  <button type="button" onclick="copyToClipboard('${escapeHtml(c.author_id)}', 'Author UUID copied!')"
+                    class="font-mono text-[11px] text-[#475569] dark:text-[#A1A1AA] hover:text-indigo-600 dark:hover:text-indigo-400 transition" title="Copy author_id: ${escapeHtml(c.author_id)}">
+                    Author: ${escapeHtml(c.author_id.slice(0, 8))}…
+                  </button>
+                </div>
+                <span class="text-[11px] text-[#475569] dark:text-[#A1A1AA]">${escapeHtml(formatShortDate(c.created_at))}</span>
+              </div>
+              <p class="text-sm text-[#0F172A] dark:text-zinc-200 whitespace-pre-wrap leading-relaxed">${escapeHtml(c.body)}</p>
+            </div>
+          `;
+        })
+        .join('');
+    }
+
+    function updateCommentCharCount() {
+      const len = (document.getElementById('comment-body').value || '').length;
+      document.getElementById('comment-char-count').textContent = `${len} / 5000`;
+    }
+
+    async function handleAddCommentSubmit(e) {
+      e.preventDefault();
+      if (!state.activeTicket) return;
+
+      const errBox = document.getElementById('add-comment-error');
+      errBox.classList.add('hidden');
+
+      const body = document.getElementById('comment-body').value.trim();
+      const isStaff = state.user && (state.user.role === 'agent' || state.user.role === 'admin');
+      const visibility = isStaff ? state.commentVisibility : 'public';
+
+      if (!body) {
+        errBox.textContent = 'Comment body cannot be empty.';
+        errBox.classList.remove('hidden');
+        return;
+      }
+
+      const btn = document.getElementById('add-comment-btn');
+      setButtonLoading(btn, true, 'Posting...');
+
+      try {
+        await apiRequest(`/tickets/${encodeURIComponent(state.activeTicket.id)}/comments`, {
+          method: 'POST',
+          body: { body, visibility },
+        });
+        document.getElementById('comment-body').value = '';
+        updateCommentCharCount();
+        showToast('Comment posted!', 'success');
+        await refreshActiveTicketActivity();
+      } catch (err) {
+        errBox.textContent = err.message;
+        errBox.classList.remove('hidden');
+      } finally {
+        setButtonLoading(btn, false);
+      }
+    }
+
+    // =========================================================================
+    // 13. AI ASSISTANT WORKSPACE (POST /ai/ask)
+    // =========================================================================
+    function updateAiCharCount() {
+      const input = document.getElementById('ai-question-input');
+      const countEl = document.getElementById('ai-char-count');
+      if (!input || !countEl) return;
+      const len = input.value.length;
+      countEl.textContent = `${len} / 500`;
+      countEl.className = `font-mono ${len > 0 && len < 3 ? 'text-amber-600 font-semibold' : len >= 480 ? 'text-rose-500 font-semibold' : 'text-slate-400 dark:text-zinc-500'}`;
+    }
+
+    function formatAiAnswerHtml(rawText) {
+      const safe = escapeHtml(rawText || '');
+      const lines = safe.split(/\r?\n/);
+      let html = '';
+      let inList = false;
+
+      for (const line of lines) {
+        const bulletMatch = line.match(/^\s*(?:[-*•]|\d+\.)\s+(.*)$/);
+        if (bulletMatch) {
+          if (!inList) {
+            html += '<ul class="list-disc pl-5 space-y-1 my-2">';
+            inList = true;
+          }
+          html += `<li>${bulletMatch[1]}</li>`;
+        } else {
+          if (inList) {
+            html += '</ul>';
+            inList = false;
+          }
+          if (line.trim() === '') html += '<div class="h-2"></div>';
+          else html += `<p class="leading-relaxed">${line}</p>`;
+        }
+      }
+      if (inList) html += '</ul>';
+      return html;
+    }
+
+    function renderSimilarityBadge(similarity) {
+      if (similarity === null || similarity === undefined || isNaN(Number(similarity))) return '';
+      const num = Number(similarity);
+      const ratio = num > 1 ? num / 100 : num;
+      const pct = Math.round(ratio * 100);
+
+      let cls = 'bg-rose-50 dark:bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-500/30';
+      if (ratio >= 0.75) {
+        cls = 'bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-500/30';
+      } else if (ratio >= 0.45) {
+        cls = 'bg-amber-50 dark:bg-amber-500/15 text-amber-800 dark:text-amber-300 border-amber-200 dark:border-amber-500/30';
+      }
+
+      return `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold border ${cls}">${pct}% match</span>`;
+    }
+
+    function renderCitationsAccordion(citations) {
+      if (!Array.isArray(citations) || citations.length === 0) return '';
+
+      const cards = citations
+        .map((c) => {
+          const title = c.title && c.title.trim() ? c.title : 'Untitled Source';
+          const parentType = c.parent_type || 'source';
+          const chunkIdx = c.chunk_index !== undefined && c.chunk_index !== null ? c.chunk_index : 0;
+          const parentId = c.parent_id || '';
+          return `
+            <div class="rounded-xl border border-[#E2E8F0] dark:border-[#27272A] bg-[#F8FAFC] dark:bg-[#111114] p-3 space-y-2">
+              <div class="flex items-start justify-between gap-2">
+                <div class="flex items-center gap-1.5 min-w-0">
+                  <span class="px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide bg-indigo-50 dark:bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border border-indigo-200/70 dark:border-indigo-500/30 shrink-0">${escapeHtml(parentType)}</span>
+                  <span class="text-xs font-semibold text-[#0F172A] dark:text-[#F4F4F5] truncate">${escapeHtml(title)}</span>
+                </div>
+                <span class="px-1.5 py-0.5 rounded text-[10px] font-mono bg-white dark:bg-[#18181B] border border-[#E2E8F0] dark:border-[#27272A] text-[#475569] dark:text-[#A1A1AA] shrink-0">Chunk #${escapeHtml(chunkIdx)}</span>
+              </div>
+              <div class="flex items-center justify-between gap-2 text-[11px]">
+                <code class="font-mono text-[#475569] dark:text-[#A1A1AA] truncate">${escapeHtml(parentId)}</code>
+                <button type="button" onclick="copyToClipboard('${escapeHtml(parentId)}', 'Source Parent ID copied!')"
+                  class="text-indigo-600 dark:text-indigo-400 hover:underline font-semibold shrink-0">Copy ID</button>
+              </div>
+            </div>
+          `;
+        })
+        .join('');
+
+      return `
+        <details class="mt-3.5 group">
+          <summary class="cursor-pointer list-none inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200/70 dark:hover:bg-zinc-700 text-xs font-semibold text-[#0F172A] dark:text-zinc-200 transition">
+            <svg class="w-3.5 h-3.5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+            <span>${citations.length} ${citations.length === 1 ? 'Source' : 'Sources'}</span>
+            <svg class="w-3.5 h-3.5 text-slate-400 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+          </summary>
+          <div class="mt-2.5 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            ${cards}
+          </div>
+        </details>
+      `;
+    }
+
+    function renderAiChatFeed() {
+      const feed = document.getElementById('ai-chat-feed');
+      if (!feed) return;
+
+      if (state.aiMessages.length === 0 && !state.aiLoading) {
+        const cards = AI_STARTER_PROMPTS.map(
+          (item, idx) => `
+            <button type="button" onclick="useAiStarterPrompt(${idx})"
+              class="text-left p-3.5 rounded-2xl bg-white dark:bg-[#18181B] border border-[#E2E8F0] dark:border-[#27272A] hover:border-indigo-400 dark:hover:border-indigo-500/60 hover:shadow-sm transition group">
+              <span class="block text-xs font-semibold text-[#0F172A] dark:text-[#F4F4F5] group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition">${escapeHtml(item.title)}</span>
+              <span class="block text-xs text-[#475569] dark:text-[#A1A1AA] mt-1 line-clamp-2">${escapeHtml(item.question)}</span>
+            </button>
+          `
+        ).join('');
+
+        feed.innerHTML = `
+          <div class="h-full flex flex-col items-center justify-center text-center py-8 px-2">
+            <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500/15 to-violet-500/15 border border-indigo-200/80 dark:border-indigo-500/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mb-4">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+              </svg>
+            </div>
+            <h2 class="font-display text-lg font-bold text-[#0F172A] dark:text-[#F4F4F5]">Ask the AI Helpdesk Assistant</h2>
+            <p class="text-xs sm:text-sm text-[#475569] dark:text-[#A1A1AA] mt-1 max-w-md">
+              Search your tenant knowledge base and resolved tickets with instant citations.
+            </p>
+            <div class="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-2xl">
+              ${cards}
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      let html = state.aiMessages
+        .map((msg, idx) => {
+          if (msg.role === 'user') {
+            return `
+              <div class="flex justify-end">
+                <div class="max-w-[85%] sm:max-w-[75%] rounded-2xl rounded-tr-sm bg-indigo-600 dark:bg-indigo-500 text-white px-4 py-3 shadow-sm">
+                  <p class="text-sm whitespace-pre-wrap leading-relaxed">${escapeHtml(msg.text)}</p>
+                  <p class="text-[10px] text-indigo-200 mt-1.5 text-right">${escapeHtml(formatShortDate(msg.at))}</p>
+                </div>
+              </div>
+            `;
+          }
+
+          if (msg.role === 'error') {
+            return `
+              <div class="flex justify-start">
+                <div class="max-w-[90%] rounded-2xl rounded-tl-sm bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800/70 px-4 py-3 text-xs text-rose-700 dark:text-rose-300">
+                  <p class="font-semibold mb-0.5">AI Request Failed</p>
+                  <p>${escapeHtml(msg.text)}</p>
+                </div>
+              </div>
+            `;
+          }
+
+          const res = msg.response || {};
+          const degradedBanner = res.degraded
+            ? `
+              <div class="mb-3 flex items-center gap-2 px-3 py-2 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 text-amber-800 dark:text-amber-300 text-xs font-medium">
+                <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                <span>Degraded Mode — Showing fallback response</span>
+              </div>
+            `
+            : '';
+
+          return `
+            <div class="flex justify-start">
+              <div class="w-full max-w-[95%] sm:max-w-[88%] bg-white dark:bg-[#18181B] border border-[#E2E8F0] dark:border-[#27272A] rounded-2xl rounded-tl-sm p-4 sm:p-5 shadow-subtle">
+                <div class="flex items-center justify-between gap-2 flex-wrap mb-3">
+                  <div class="flex items-center gap-2">
+                    <div class="w-6 h-6 rounded-lg bg-indigo-100 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-300 flex items-center justify-center shrink-0">
+                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/></svg>
+                    </div>
+                    <span class="text-xs font-bold text-[#0F172A] dark:text-[#F4F4F5]">AI Assistant</span>
+                    ${renderSimilarityBadge(res.similarity)}
+                  </div>
+                  <span class="text-[11px] text-slate-400 dark:text-zinc-500">${escapeHtml(formatShortDate(msg.at))}</span>
+                </div>
+
+                ${degradedBanner}
+
+                <div class="text-sm text-[#0F172A] dark:text-zinc-200 space-y-1">
+                  ${formatAiAnswerHtml(res.answer)}
+                </div>
+
+                ${renderCitationsAccordion(res.citations)}
+
+                <div class="mt-4 pt-3 border-t border-[#E2E8F0] dark:border-[#27272A] flex items-center justify-between gap-2 flex-wrap">
+                  <span class="text-[11px] text-[#475569] dark:text-[#A1A1AA]">Still need help from an agent?</span>
+                  <button type="button" onclick="escalateAiQuestionToTicket(${idx})"
+                    class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-zinc-800 hover:bg-indigo-50 dark:hover:bg-indigo-500/20 text-[#0F172A] dark:text-zinc-200 hover:text-indigo-700 dark:hover:text-indigo-300 text-xs font-semibold transition">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                    Didn't solve it? Create Ticket
+                  </button>
+                </div>
+              </div>
+            </div>
+          `;
+        })
+        .join('');
+
+      if (state.aiLoading) {
+        html += `
+          <div class="flex justify-start">
+            <div class="inline-flex items-center gap-3 px-4 py-3 rounded-2xl rounded-tl-sm bg-white dark:bg-[#18181B] border border-[#E2E8F0] dark:border-[#27272A] shadow-subtle">
+              <div class="flex items-center gap-1">
+                <span class="typing-dot w-2 h-2 rounded-full bg-indigo-500"></span>
+                <span class="typing-dot w-2 h-2 rounded-full bg-indigo-500"></span>
+                <span class="typing-dot w-2 h-2 rounded-full bg-indigo-500"></span>
+              </div>
+              <span class="text-xs font-medium text-[#475569] dark:text-[#A1A1AA]">Searching knowledge base...</span>
+            </div>
+          </div>
+        `;
+      }
+
+      feed.innerHTML = html;
+      feed.scrollTop = feed.scrollHeight;
+    }
+
+    function useAiStarterPrompt(index) {
+      const item = AI_STARTER_PROMPTS[index];
+      if (!item) return;
+      const input = document.getElementById('ai-question-input');
+      input.value = item.question;
+      updateAiCharCount();
+      input.focus();
+    }
+
+    function clearAiChat() {
+      state.aiMessages = [];
+      document.getElementById('ai-ask-error').classList.add('hidden');
+      renderAiChatFeed();
+    }
+
+    function escalateAiQuestionToTicket(aiMsgIndex) {
+      const msg = state.aiMessages[aiMsgIndex];
+      const question = (msg?.question || '').trim();
+      const aiAnswer = (msg?.response?.answer || '').trim();
+      const title = question.length > 120 ? question.slice(0, 117) + '...' : question;
+      let description = '';
+      if (question) description += `Original question:\n${question}`;
+      if (aiAnswer) description += `\n\nAI Assistant response:\n${aiAnswer}`;
+      openCreateTicketModal({ title, description, priority: 'medium' });
+    }
+
+    async function handleAiAskSubmit(e) {
+      e.preventDefault();
+      if (state.aiLoading) return;
+
+      const errBox = document.getElementById('ai-ask-error');
+      errBox.classList.add('hidden');
+
+      const input = document.getElementById('ai-question-input');
+      const question = input.value.trim();
+
+      if (question.length < 3) {
+        errBox.textContent = 'Question must be at least 3 characters long.';
+        errBox.classList.remove('hidden');
+        return;
+      }
+      if (question.length > 500) {
+        errBox.textContent = 'Question cannot exceed 500 characters.';
+        errBox.classList.remove('hidden');
+        return;
+      }
+
+      state.aiMessages.push({ role: 'user', text: question, at: new Date().toISOString() });
+      input.value = '';
+      updateAiCharCount();
+
+      state.aiLoading = true;
+      const btn = document.getElementById('ai-ask-btn');
+      setButtonLoading(btn, true, '...');
+      renderAiChatFeed();
+
+      try {
+        const res = await apiRequest('/ai/ask', { method: 'POST', body: { question } });
+        state.aiMessages.push({ role: 'ai', question, response: res, at: new Date().toISOString() });
+      } catch (err) {
+        state.aiMessages.push({ role: 'error', text: err.message, at: new Date().toISOString() });
+      } finally {
+        state.aiLoading = false;
+        setButtonLoading(btn, false);
+        renderAiChatFeed();
+      }
+    }
+
+    // =========================================================================
+    // 14. USERS & DIRECTORY (POST /users & GET /users/test/{user_id})
+    // =========================================================================
+    function renderUserOutCard(user) {
+      return `
+        <div class="space-y-3 text-xs">
+          <div class="flex items-start justify-between gap-2">
+            <div>
+              <p class="text-sm font-bold text-[#0F172A] dark:text-[#F4F4F5]">${escapeHtml(user.name)}</p>
+              <p class="text-[#475569] dark:text-[#A1A1AA]">${escapeHtml(user.email)}</p>
+            </div>
+            ${renderRoleBadge(user.role)}
+          </div>
+          <div class="flex items-center justify-between gap-2 bg-white dark:bg-[#18181B] border border-[#E2E8F0] dark:border-[#27272A] rounded-xl px-3 py-2">
+            <code class="font-mono text-[11px] text-[#0F172A] dark:text-zinc-300 truncate">${escapeHtml(user.id)}</code>
+            <button type="button" onclick="copyToClipboard('${escapeHtml(user.id)}', 'User UUID copied!')"
+              class="text-indigo-600 dark:text-indigo-400 hover:underline font-semibold shrink-0">Copy UUID</button>
+          </div>
+          <p class="text-[11px] text-[#475569] dark:text-[#A1A1AA]">Created: ${escapeHtml(formatDateTime(user.created_at))}</p>
+        </div>
+      `;
+    }
+
+    async function handleCreateUserSubmit(e) {
+      e.preventDefault();
+      const errBox = document.getElementById('create-user-error');
+      errBox.classList.add('hidden');
+      document.getElementById('created-user-result').classList.add('hidden');
+
+      const tenant_id = document.getElementById('user-tenant-id').value.trim();
+      const name = document.getElementById('user-name').value.trim();
+      const email = document.getElementById('user-email').value.trim();
+      const roleInput = document.querySelector('input[name="user-role"]:checked');
+      const role = roleInput ? roleInput.value : 'end_user';
+      const password = document.getElementById('user-password').value;
+
+      if (password.length < 8) {
+        errBox.textContent = 'Password must be at least 8 characters long.';
+        errBox.classList.remove('hidden');
+        return;
+      }
+
+      const btn = document.getElementById('create-user-btn');
+      setButtonLoading(btn, true, 'Creating...');
+
+      try {
+        const user = await apiRequest('/users', {
+          method: 'POST',
+          body: { tenant_id, email, name, role, password },
+        });
+        document.getElementById('created-user-card').innerHTML = renderUserOutCard(user);
+        document.getElementById('created-user-result').classList.remove('hidden');
+        document.getElementById('user-name').value = '';
+        document.getElementById('user-email').value = '';
+        document.getElementById('user-password').value = '';
+        showToast(`User ${user.email} created!`, 'success');
+      } catch (err) {
+        errBox.textContent = err.message;
+        errBox.classList.remove('hidden');
+      } finally {
+        setButtonLoading(btn, false);
+      }
+    }
+
+    function fillOwnUserIdForLookup() {
+      if (state.user?.id) document.getElementById('test-user-id').value = state.user.id;
+    }
+
+    async function handleTestUserLookup(e) {
+      e.preventDefault();
+      const errBox = document.getElementById('test-user-error');
+      const outBox = document.getElementById('test-user-output');
+      errBox.classList.add('hidden');
+      outBox.classList.add('hidden');
+
+      const userId = document.getElementById('test-user-id').value.trim();
+      if (!userId) return;
+
+      const btn = document.getElementById('test-user-btn');
+      setButtonLoading(btn, true, 'Fetching...');
+
+      try {
+        const user = await apiRequest(`/users/test/${encodeURIComponent(userId)}`, { auth: false });
+        document.getElementById('test-user-card').innerHTML = renderUserOutCard(user);
+        document.getElementById('test-user-json').textContent = JSON.stringify(user, null, 2);
+        outBox.classList.remove('hidden');
+      } catch (err) {
+        errBox.textContent = err.message;
+        errBox.classList.remove('hidden');
+      } finally {
+        setButtonLoading(btn, false);
+      }
+    }
+
+    // =========================================================================
+    // 15. INITIALIZATION & GLOBAL EVENT LISTENERS
+    // =========================================================================
+    document.addEventListener('DOMContentLoaded', async () => {
+      syncThemeIcons();
+      syncApiUrlDisplays();
+      detectTenantSlugFromUrl();
+      renderAiChatFeed();
+
+      // Profile Popover toggle (explicit stopPropagation)
+      const profileBtn = document.getElementById('profile-menu-btn');
+      const profilePopover = document.getElementById('profile-popover');
+
+      profileBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isOpen = !profilePopover.classList.contains('hidden');
+        profilePopover.classList.toggle('hidden', isOpen);
+        profileBtn.setAttribute('aria-expanded', String(!isOpen));
+      });
+
+      profilePopover.addEventListener('click', (e) => e.stopPropagation());
+
+      // Close popover on outside click
+      document.addEventListener('click', () => closeProfilePopover());
+
+      // Escape key closes popovers, modals, and drawer
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+          closeProfilePopover();
+          closeCreateTicketModal();
+          closeApiUrlModal();
+          closeTicketDrawer();
+          closeMobileSidebar();
+        }
+      });
+
+      // Form Listeners
+      document.getElementById('login-form').addEventListener('submit', handleLoginSubmit);
+      document.getElementById('ticket-lookup-form').addEventListener('submit', handleTicketLookup);
+      document.getElementById('create-ticket-form').addEventListener('submit', handleCreateTicketSubmit);
+      document.getElementById('update-ticket-form').addEventListener('submit', handleUpdateTicketSubmit);
+      document.getElementById('add-comment-form').addEventListener('submit', handleAddCommentSubmit);
+      document.getElementById('ai-ask-form').addEventListener('submit', handleAiAskSubmit);
+      document.getElementById('create-user-form').addEventListener('submit', handleCreateUserSubmit);
+      document.getElementById('test-user-form').addEventListener('submit', handleTestUserLookup);
+
+      // Enter-to-send on AI Assistant composer (Shift+Enter adds newline)
+      document.getElementById('ai-question-input').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          document.getElementById('ai-ask-form').requestSubmit();
+        }
+      });
+
+      // Initial Health Check
+      checkHealth();
+
+      // Restore session if JWT exists
+      if (state.token) {
+        try {
+          await bootstrapAuthenticatedApp();
+        } catch (err) {
+          showLoginView();
+        }
+      } else {
+        showLoginView();
+      }
+    });
+  </script>
+</body>
+</html>
