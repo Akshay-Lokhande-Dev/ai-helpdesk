@@ -1640,6 +1640,7 @@ if (INITIAL_API_URL !== STORED_API_URL) {
           } else if (
   !isIp &&
   !host.endsWith('.onrender.com') &&
+  !host.endsWith('.railway.app') &&
   host.split('.').length >= 3
 ) {
             const sub = host.split('.')[0];
